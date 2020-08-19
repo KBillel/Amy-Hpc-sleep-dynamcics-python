@@ -39,7 +39,7 @@ def set_current_session(path_local):
     
     return True
 
-def batch(func):
+def batch(func,verbose = False):
     
     #Author : BK
     #Date : 08/20
@@ -64,11 +64,11 @@ def batch(func):
         try:
             output = func(path)
             output_dict.update({session:output})
-            clear_output()
+            if not verbose: clear_output()
         except:
             error.append(session)
             print('Error in session ' + session)
-            clear_output()
+            if not verbose: clear_output()
     print('Batch finished in ' + str(time.time() - t))
     
     if error:
