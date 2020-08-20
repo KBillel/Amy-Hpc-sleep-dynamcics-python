@@ -5,6 +5,7 @@ import scipy.io
 import sys
 from progressbar import ProgressBar
 import time
+import pickle
 
 from IPython.display import clear_output
 
@@ -128,11 +129,20 @@ def loadSpikeData(path, index=None, fs = 20000):
     clu_files     = np.sort([f for f in files if '.clu.' in f and f[0] != '.'])
     res_files     = np.sort([f for f in files if '.res.' in f and f[0] != '.'])
     
+    # Changed because some files have weird names in GG dataset because of some backup on clu/res files
+    # Rat10-20140627.clu.10.07.07.2014.15.41 for instance
+    
+#     clu_files = clu_files[[len(i) < 22 for i in clu_files]]
+#     res_files = res_files[[len(i) < 22 for i in res_files]]
+    
+
     clu1         = np.sort([int(f.split(".")[-1]) for f in clu_files])
     clu2         = np.sort([int(f.split(".")[-1]) for f in res_files])
+    
     if len(clu_files) != len(res_files) or not (clu1 == clu2).any():
         print("Not the same number of clu and res files in "+path+"; Exiting ...")
         sys.exit()
+#   Ignore this because in GG dataset their .clu.bak files that mess up everything ...
     count = 0
     spikes = []
     basename = clu_files[0].split(".")[0]
