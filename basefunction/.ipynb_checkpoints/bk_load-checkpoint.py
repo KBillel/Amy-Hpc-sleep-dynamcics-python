@@ -11,6 +11,8 @@ from IPython.display import clear_output
 
 import os
 
+def get_session():
+    return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
 
 def set_current_session(path_local):
     
@@ -119,6 +121,9 @@ def loadSpikeData(path, index=None, fs = 20000):
         dict, array    
     """
     
+#     try session:
+#     except: print('Did you load a session first?')
+    
     
     if not os.path.exists(path):
         print("The path "+path+" doesn't exist; Exiting ...")
@@ -132,17 +137,18 @@ def loadSpikeData(path, index=None, fs = 20000):
     # Changed because some files have weird names in GG dataset because of some backup on clu/res files
     # Rat10-20140627.clu.10.07.07.2014.15.41 for instance
     
-#     clu_files = clu_files[[len(i) < 22 for i in clu_files]]
-#     res_files = res_files[[len(i) < 22 for i in res_files]]
+    clu_files = clu_files[[len(i) < 22 for i in clu_files]]
+    res_files = res_files[[len(i) < 22 for i in res_files]]
     
 
     clu1         = np.sort([int(f.split(".")[-1]) for f in clu_files])
     clu2         = np.sort([int(f.split(".")[-1]) for f in res_files])
     
-    if len(clu_files) != len(res_files) or not (clu1 == clu2).any():
-        print("Not the same number of clu and res files in "+path+"; Exiting ...")
-        sys.exit()
-#   Ignore this because in GG dataset their .clu.bak files that mess up everything ...
+#     if len(clu_files) != len(res_files) or not (clu1 == clu2).any():
+#         print("Not the same number of clu and res files in "+path+"; Exiting ...")
+#         sys.exit()
+#   Commented this because in GG dataset their .clu.12.54.21.63 files that mess up everything ...
+    
     count = 0
     spikes = []
     basename = clu_files[0].split(".")[0]
@@ -178,4 +184,4 @@ def loadSpikeData(path, index=None, fs = 20000):
 
     del spikes
     shank = np.hstack(shank)
-    return np.array(toreturn), np.array([shank, idx_clu_returned]).T #idx_clu is returned in order to keep indexing consistent with Matlab code.
+    return np.array(toreturn,dtype = 'object'), np.array([shank, idx_clu_returned]).T #idx_clu is returned in order to keep indexing consistent with Matlab code.

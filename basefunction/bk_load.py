@@ -11,6 +11,8 @@ from IPython.display import clear_output
 
 import os
 
+def get_session():
+    return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
 
 def set_current_session(path_local):
     
@@ -182,4 +184,4 @@ def loadSpikeData(path, index=None, fs = 20000):
 
     del spikes
     shank = np.hstack(shank)
-    return np.array(toreturn), np.array([shank, idx_clu_returned]).T #idx_clu is returned in order to keep indexing consistent with Matlab code.
+    return np.array(toreturn,dtype = 'object'), np.array([shank, idx_clu_returned]).T #idx_clu is returned in order to keep indexing consistent with Matlab code.
