@@ -93,19 +93,19 @@ def get_session_path(session_name):
     return session_path
 
 
-def pos(session_name):
+def pos():
     #BK : 04/08/2020
     #Return a NeuroSeries DataFrame of position whith the time as index
     
-    session_path = get_session_path(session_name)
-    pos_clean = scipy.io.loadmat(session_path + "/posClean.mat")['posClean']
+#     session_path = get_session_path(session_name)
+    pos_clean = scipy.io.loadmat(path + "/posClean.mat")['posClean']
     return nts.TsdFrame(t = pos_clean[:,0],d = pos_clean[:,1:],columns = ['x','y'],time_units = 's')
 
-def states(session_name):
+def states():
     #BK : 17/09/2020
     #Return a dict with variable from States.
-    session_path = get_session_path(session_name)
-    states = scipy.io.loadmat(session_path + '/States.mat')
+#     if session_path == 0 : session_path = get_session_path(session_name)
+    states = scipy.io.loadmat(path + '/States.mat')
     
     useless  = ['__header__','__version__','__globals__']
     for u in useless:
@@ -204,50 +204,51 @@ def loadSpikeData(path, index=None, fs = 20000):
 
 def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
     #From Guillaume Viejo
-    
-	import neuroseries as nts
-	if type(channel) is not list:
-		f = open(path, 'rb')
-		startoffile = f.seek(0, 0)
-		endoffile = f.seek(0, 2)
-		bytes_size = 2		
-		n_samples = int((endoffile-startoffile)/n_channels/bytes_size)
-		duration = n_samples/frequency
-		interval = 1/frequency
-		f.close()
-		with open(path, 'rb') as f:
-			data = np.fromfile(f, np.int16).reshape((n_samples, n_channels))[:,channel]
-		timestep = np.arange(0, len(data))/frequency
-		return nts.Tsd(timestep, data, time_units = 's')
-	elif type(channel) is list:
-		f = open(path, 'rb')
-		startoffile = f.seek(0, 0)
-		endoffile = f.seek(0, 2)
-		bytes_size = 2
-		
-		n_samples = int((endoffile-startoffile)/n_channels/bytes_size)
-		duration = n_samples/frequency
-		f.close()
-		with open(path, 'rb') as f:
-			data = np.fromfile(f, np.int16).reshape((n_samples, n_channels))[:,channel]
-		timestep = np.arange(0, len(data))/frequency
-		return nts.TsdFrame(timestep, data, time_units = 's')
-    
-def lfp(path,  start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
-    
-    # From Guillaume viejo
-	import neuroseries as nts	
-	bytes_size = 2		
-	start_index = int(start*frequency*n_channels*bytes_size)
-	stop_index = int(stop*frequency*n_channels*bytes_size)
-	fp = np.memmap(path, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
-	data = np.array(fp).reshape(len(fp)//n_channels, n_channels)
+    import neuroseries as nts
+    if type(channel) is not list:
+        f = open(path, 'rb')
+        startoffile = f.seek(0, 0)
+        endoffile = f.seek(0, 2)
+        bytes_size = 2		
+        n_samples = int((endoffile-startoffile)/n_channels/bytes_size)
+        duration = n_samples/frequency
+        interval = 1/frequency
+        f.close()
+        with open(path, 'rb') as f:
+            print('opening')
+            data = np.fromfile(f, np.int16).reshape((n_samples, n_channels))[:,channel]
+            timestep = np.arange(0, len(data))/frequency
+        return nts.Tsd(timestep, data, time_units = 's')
+    elif type(channel) is list:
+        f = open(path, 'rb')
+        startoffile = f.seek(0, 0)
+        endoffile = f.seek(0, 2)
+        bytes_size = 2
 
-	if type(channel) is not list:
-		timestep = np.arange(0, len(data))/frequency
-		return nts.Tsd(timestep, data[:,channel], time_units = 's')
-	elif type(channel) is list:
-		timestep = np.arange(0, len(data))/frequency		
-		return nts.TsdFrame(timestep, data[:,channel], time_units = 's')
+        n_samples = int((endoffile-startoffile)/n_channels/bytes_size)
+        duration = n_samples/frequency
+        f.close()
+        with open(path, 'rb') as f:
+            data = np.fromfile(f, np.int16).reshape((n_samples, n_channels))[:,channel]
+            timestep = np.arange(0, len(data))/frequency
+        return nts.TsdFrame(timestep, data, time_units = 's')
+
+def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
+    
+    path = session+".lfp"
+    # From Guillaume viejo
+    import neuroseries as nts	
+    bytes_size = 2		
+    start_index = int(start*frequency*n_channels*bytes_size)
+    stop_index = int(stop*frequency*n_channels*bytes_size)
+    fp = np.memmap(path, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
+    data = np.array(fp).reshape(len(fp)//n_channels, n_channels)
+
+    if type(channel) is not list:
+        timestep = np.arange(0, len(data))/frequency+start
+        return nts.Tsd(timestep, data[:,channel], time_units = 's')
+    elif type(channel) is list:
+        timestep = np.arange(0, len(data))/frequency+start
+        return nts.TsdFrame(timestep, data[:,channel], time_units = 's')
 
 
