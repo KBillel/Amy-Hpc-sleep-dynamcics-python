@@ -144,7 +144,15 @@ def loadSpikeData(path, index=None, fs = 20000):
     if not os.path.exists(path):
         print("The path "+path+" doesn't exist; Exiting ...")
         sys.exit()
-
+    if os.path.exists(path + '//' + session +'-neurons.npy'):
+        print('Data already saved in Numpy format, loading them from here:')
+        print(session +'-neurons.npy')
+        neurons = np.load(path+'//' + session +'-neurons.npy',allow_pickle=True)
+        print(session +'-NeuronsShanks.npy')
+        shanks = np.load(path+'//' + session +'-neuronsShanks.npy',allow_pickle=True)
+        
+        return neurons,shanks
+                      
     files = os.listdir(path)
     # Changed 'clu' to '.clu.' same for res as in our dataset we have file containing the word clu that are not clu files
     clu_files     = np.sort([f for f in files if '.clu.' in f and f[0] != '.'])
@@ -200,7 +208,20 @@ def loadSpikeData(path, index=None, fs = 20000):
 
     del spikes
     shank = np.hstack(shank)
-    return np.array(toreturn,dtype = 'object'), np.array([shank, idx_clu_returned]).T #idx_clu is returned in order to keep indexing consistent with Matlab code.
+    
+    neurons = np.array(toreturn,dtype = 'object')
+    shanks = np.array([shank, idx_clu_returned]).T
+    
+    print()
+    print('Saving data in Numpy format :')
+    
+    print('Saving ' + session +'-neurons.npy')
+    np.save(path + '//' + session + '-neurons',neurons)
+    
+    print('Saving ' + session +'-neuronsShanks.npy')
+    np.save(path + '//' + session + '-neuronsShanks',shanks)
+                      
+    return neurons,shanks  #idx_clu is returned in order to keep indexing consistent with Matlab code.
 
 def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
     #From Guillaume Viejo
