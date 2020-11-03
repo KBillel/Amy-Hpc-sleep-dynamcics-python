@@ -15,7 +15,7 @@ import os
 def sessions():
     return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
 
-def current_session(path_local):
+def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     
     #Author : BK 08/20
     #Input Path to the session to load
@@ -30,8 +30,8 @@ def current_session(path_local):
    
     path = path_local
     session = path.split('\\')[2]
-    rat = session_index['Rat'][session_index['Path'] == path].values
-    day = session_index['Day'][session_index['Path'] == path].values
+    rat = session_index['Rat'][session_index['Path'] == path].values[0]
+    day = session_index['Day'][session_index['Path'] == path].values[0]
     
     print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
     print('Working with session ' + session + ' @ ' + path)
@@ -148,9 +148,9 @@ def loadSpikeData(path, index=None, fs = 20000):
         print('Data already saved in Numpy format, loading them from here:')
         print(session +'-neurons.npy')
         neurons = np.load(path+'//' + session +'-neurons.npy',allow_pickle=True)
-        print(session +'-NeuronsShanks.npy')
-        shanks = np.load(path+'//' + session +'-neuronsShanks.npy',allow_pickle=True)
-        
+        print(session +'-metadata.npy')
+        shanks = np.load(path+'//' + session +'-metadata.npy',allow_pickle=True)
+        shanks = pd.DataFrame(shanks,columns = ['Shank','Id','Region','Type'])
         return neurons,shanks
                       
     files = os.listdir(path)
