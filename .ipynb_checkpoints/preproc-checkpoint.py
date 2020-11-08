@@ -30,7 +30,7 @@ def load_digitalin(path,nchannels=16,Fs = 20000):
     return data
 
 def CountTTL(TTL):
-    #Return the number TTL and the index where the first one starts
+    #Return the number TTL and the index where the last one starts
     
     TTL = list(map(int,TTL))
     diff_TTL = np.diff(TTL)
@@ -51,9 +51,9 @@ def TTLtoTimes(TTL,Fs = 20000):
     
     diff_TTL = np.diff(TTL)
     print(diff_TTL.shape)
-    t_start = np.where(diff_TTL == 1)
-    t_end = np.where(diff_TTL == -1)
-    t_TTL = np.array([np.mean(interval,0) for interval in zip(t_start,t_end)])[0]
+    t_start = np.where(diff_TTL == 1)[0]
+    t_end = np.where(diff_TTL == -1)[0]
+    t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
     
     return t_TTL/Fs
 
@@ -203,7 +203,6 @@ def concat_digitalin(session,path_digitalin,path_videos,nchannels = 16):
 def downsampleDatFileBK(path, n_channels, fs):
     
     #Code by Guillaume Viejo 
-    
     #Adapted by Billel Khouader oct 2020
     
     """
