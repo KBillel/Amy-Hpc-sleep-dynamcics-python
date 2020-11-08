@@ -3,7 +3,6 @@ import neuroseries as nts
 
 import scipy.stats
 
-
 def freezing(speed,treshold):
     """
         BK 8/11/20
@@ -13,16 +12,13 @@ def freezing(speed,treshold):
     """
     
     fs =  1/scipy.stats.mode(np.diff(speed.index)).mode[0]
-    print(fs)
     freezing = speed.values<treshold
     if freezing[0] == 1: freezing[0] = 0
     if freezing[-1] == 1: freezing = np.append(freezing,0)
         
     dfreeze = np.diff(freezing.astype(np.int8))
-    
     start = np.where(dfreeze == 1)[0]/fs + speed.index[0]
     end = np.where(dfreeze == -1)[0]/fs + speed.index[0]
     
-    freezing_intervals = nts.IntervalSet(start,end,time_units = 's')
-
+    freezing_intervals = nts.IntervalSet(start,end)
     return freezing_intervals
