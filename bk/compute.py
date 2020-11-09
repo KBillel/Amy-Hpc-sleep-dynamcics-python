@@ -21,4 +21,10 @@ def freezing(speed,treshold):
     end = np.where(dfreeze == -1)[0]/fs + speed.index[0]
     
     freezing_intervals = nts.IntervalSet(start,end)
+    
+    consolidateIntervals(intervals,tmin)
+    de
+    
     return freezing_intervals
+
+def

@@ -50,7 +50,7 @@ def TTLtoTimes(TTL,Fs = 20000):
         TTL = list(map(int,TTL))
     
     diff_TTL = np.diff(TTL)
-    print(diff_TTL.shape)
+
     t_start = np.where(diff_TTL == 1)[0]
     t_end = np.where(diff_TTL == -1)[0]
     t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
