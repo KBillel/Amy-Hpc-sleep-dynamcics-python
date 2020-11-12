@@ -22,9 +22,5 @@ def freezing(speed,treshold):
     
     freezing_intervals = nts.IntervalSet(start,end)
     
-    consolidateIntervals(intervals,tmin)
-    de
     
     return freezing_intervals
-
-def
