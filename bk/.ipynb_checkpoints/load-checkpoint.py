@@ -230,7 +230,7 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
         f = open(path, 'rb')
         startoffile = f.seek(0, 0)
         endoffile = f.seek(0, 2)
-        bytes_size = 2		
+        bytes_size = 2
         n_samples = int((endoffile-startoffile)/n_channels/bytes_size)
         duration = n_samples/frequency
         interval = 1/frequency
@@ -259,8 +259,8 @@ def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int
     p = session+".lfp"
     print('Load LFP from ' + p)
     # From Guillaume viejo
-    import neuroseries as nts	
-    bytes_size = 2		
+    import neuroseries as nts
+    bytes_size = 2
     start_index = int(start*frequency*n_channels*bytes_size)
     stop_index = int(stop*frequency*n_channels*bytes_size)
     fp = np.memmap(p, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
