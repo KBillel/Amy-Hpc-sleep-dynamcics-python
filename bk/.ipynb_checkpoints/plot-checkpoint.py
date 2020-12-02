@@ -20,11 +20,11 @@ def rasterPlot(neurons,window,col = 'black'):
     plt.ylabel('Neurons')
     plt.xlabel('Time(s)')
     
-def intervals(intervals,col,time_units = 's'):
+def intervals(intervals,col = 'orange',alpha = 0.5,time_units = 's'):
     
     if type(intervals) != nts.interval_set.IntervalSet:
         print(type(intervals))
         intervals = nts.IntervalSet(intervals['start'],intervals['end'])
     
     for interval in intervals.as_units(time_units).values:
-        plt.axvspan(interval[0],interval[1], facecolor=col, alpha=0.5)
+        plt.axvspan(interval[0],interval[1], facecolor=col, alpha=alpha)

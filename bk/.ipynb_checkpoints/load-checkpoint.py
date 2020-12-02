@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
 import os
+import bk.compute
 
 def sessions():
     return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
@@ -274,3 +275,59 @@ def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int
         return nts.TsdFrame(timestep, data[:,channel], time_units = 's')
 
 
+
+#####
+
+def digitalin(path,nchannels=16,Fs = 20000):
+    import pandas as pd
+    
+    digital_word = np.fromfile(path,'uint16')
+    sample = len(digital_word)
+    time = np.arange(0,sample)
+    time = time/Fs
+
+    
+    for i in range(nchannels):
+        if i == 0: data = (digital_word & 2**i)>0
+        else: data = np.vstack((data,(digital_word & 2**i)>0))
+
+    return data
+    
+def freezing_intervals():
+    if os.path.exists('freezing_intervals.npy'):
+        freezing_intervals = np.load('freezing_intervals.npy')
+        return nts.IntervalSet(start = freezing_intervals[:,0], end = freezing_intervals[:,1])
+    else:
+        print('Could not find freezing_intervals.npy')
+        return False
+    
+def DLC_pos(filtered = True):
+    """
+    Load position from DLC files (*.h5) and returns it as a nts.TsdFrame
+    """
+    
+    files = os.listdir()
+    for f in files:
+        if filtered and f.endswith('filtered.h5'): 
+            filename = f
+            break
+        if not filtered and not f.endswith('filtered.h5') and f.endswith('.h5'):
+            filename = f
+            break
+            
+    data = pd.read_hdf(filename)
+    data = data[data.keys()[0][0]]
+    
+    TTL = digitalin('digitalin.dat')[0,:]
+    tf = bk.compute.TTL_to_times(TTL)
+    
+    if len(tf)>len(data):
+        tf = np.delete(tf,-1)
+    
+    data.index = tf * 1_000_000
+    pos = nts.TsdFrame(data)
+    return pos
+        
+        
+
+       

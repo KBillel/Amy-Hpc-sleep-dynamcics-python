@@ -226,7 +226,7 @@ class IntervalSet(pd.DataFrame):
         :return: a copied IntervalSet with the dropped intervals
         :rtype: neuroseries.interval_set.IntervalSet
         """
-        threshold = TimeUnits.format_timestamps(np.array((threshold,), dtype=np.int64).ravel(), time_units)[0]
+        threshold = TimeUnits.format_timestamps(np.array((threshold,), dtype=np.float64).ravel(), time_units)[0]
         return self.loc[(self['end']-self['start']) > threshold]
 
     def as_units(self, units=None):

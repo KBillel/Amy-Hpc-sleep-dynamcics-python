@@ -103,7 +103,7 @@ def concat_lfp_dat(session,path_dat):
     originalFileSize = []
     for p in path_dat:
         originalFileSize.append(os.path.getsize(p))
-    finalSize = np.sum(originalFileSize)	
+    finalSize = np.sum(originalFileSize)
     concatSize = os.path.getsize(session+'.dat')
     
     
