@@ -166,3 +166,13 @@ def speed(pos,value_gaussian_filter, columns_to_drop=None):
     if columns_to_drop != None: all_speed = all_speed.drop(columns=columns_to_drop)
     
     return all_speed
+
+def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0):
+    if stop == 0:
+        stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons])
+    bins = np.arange(start,stop,binSize)
+    binned = []
+    for neuron in neurons:
+        hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
+        binned.append(hist)
+    return np.array(binned),b
