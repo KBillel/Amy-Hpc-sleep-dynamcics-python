@@ -176,3 +176,55 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0):
         hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
         binned.append(hist)
     return np.array(binned),b
+
+def transitions_times(states,epsilon = 1):
+    '''
+        states : dict of nts.Interval_Set
+        
+        This function compute transition in between Intervals in a dict.
+        It returns a new dict with intervals and when the transition occurs
+        
+        epsilon : tolerance time delay between state
+        
+    '''
+    
+    import itertools
+    
+    empty_state = []
+    for state in states:
+        if len(states[state]) == 0:
+            empty_state.append(state)
+            continue
+        states[state] = states[state].drop_short_intervals(1)
+    
+    
+    for i in empty_state: del states[i]
+        
+    transitions_intervals = {}
+    transitions_timing = {}
+    
+    for items in itertools.permutations(states.keys(),2):
+#         states[items[0]] = states[items[0]].drop_short_intervals(1)
+#         states[items[1]] = states[items[1]].drop_short_intervals(1)
+        
+        print('Looking at transition from',items[0],' to ',items[1])
+        end = nts.Ts(np.array(states[items[0]].end + (epsilon * 1_000_000)+1))
+        in_next_epoch = states[items[1]].in_interval(end)
+        
+        transitions_intervals.update({items:[]})
+        transitions_timing.update({items:[]})
+
+        for n,t in enumerate(in_next_epoch):
+            if np.isnan(t): continue            
+            start = states[items[0]].iloc[n].start
+            trans = int(np.mean([states[items[0]].iloc[n].end,states[items[1]].iloc[int(t)].start]))
+            end  = states[items[1]].iloc[int(t)].end
+            transitions_intervals[items].append([start,end])
+            transitions_timing[items].append(trans)
+        
+        if  not transitions_timing[items] == []:      
+            transitions_intervals[items] = np.array(transitions_intervals[items])
+            transitions_intervals[items] = nts.IntervalSet(transitions_intervals[items][:,0],transitions_intervals[items][:,1])
+            
+            transitions_timing[items] = nts.Ts(t = np.array(transitions_timing[items]))
+    return transitions_intervals,transitions_timing
