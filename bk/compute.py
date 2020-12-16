@@ -186,6 +186,8 @@ def transitions_times(states,epsilon = 1):
         
         epsilon : tolerance time delay between state
         
+        This function does NOT WORK for triple transitions (ex : sws/rem/sws) ... 
+        
     '''
     
     import itertools
