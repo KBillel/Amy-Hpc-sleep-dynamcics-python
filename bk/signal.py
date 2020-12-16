@@ -1,4 +1,5 @@
 import scipy
+import scipy.signal
 import neuroseries as nts
 import numpy as np
 
