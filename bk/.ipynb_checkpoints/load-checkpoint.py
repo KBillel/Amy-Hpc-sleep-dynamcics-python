@@ -94,12 +94,17 @@ def get_session_path(session_name):
     return session_path
 
 
-def pos():
+def pos(save=False):
     #BK : 04/08/2020
     #Return a NeuroSeries DataFrame of position whith the time as index
     
 #     session_path = get_session_path(session_name)
+    import csv
+    
     pos_clean = scipy.io.loadmat(path + "/posClean.mat")['posClean']
+#     if save == True :
+#         with open('position'+'.csv', 'w') as csvfile:
+#             filewriter=csv.writer(csvfile)
     return nts.TsdFrame(t = pos_clean[:,0],d = pos_clean[:,1:],columns = ['x','y'],time_units = 's')
 
 def states():
@@ -301,12 +306,18 @@ def freezing_intervals():
         print('Could not find freezing_intervals.npy')
         return False
     
-def DLC_pos(filtered = True):
+    
+    
+def DLC_pos(filtered = True,force_reload = False, save = False):
     """
     Load position from DLC files (*.h5) and returns it as a nts.TsdFrame
     """
-    
     files = os.listdir()
+    if ('positions.h5' in files) and (force_reload == False):
+        data = pd.read_hdf('positions.h5')
+        pos = nts.TsdFrame(data)
+        return pos
+
     for f in files:
         if filtered and f.endswith('filtered.h5'): 
             filename = f
@@ -314,20 +325,22 @@ def DLC_pos(filtered = True):
         if not filtered and not f.endswith('filtered.h5') and f.endswith('.h5'):
             filename = f
             break
-            
+
     data = pd.read_hdf(filename)
     data = data[data.keys()[0][0]]
-    
+
     TTL = digitalin('digitalin.dat')[0,:]
     tf = bk.compute.TTL_to_times(TTL)
-    
+
     if len(tf)>len(data):
         tf = np.delete(tf,-1)
-    
+
     data.index = tf * 1_000_000
+    
+    if save:
+        data.to_hdf('positions.h5','pos')
+        
     pos = nts.TsdFrame(data)
     return pos
-        
-        
 
        
