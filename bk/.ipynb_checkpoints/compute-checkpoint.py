@@ -176,3 +176,28 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0):
         hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
         binned.append(hist)
     return np.array(binned),b
+
+
+def intervals_exp(force_reload = False, save = False):
+    files = os.listdir()
+    if ('intervals.npy' in files) and (force_reload == False):
+        with open('intervals.npy', 'rb') as f:
+            exp = np.load(f)
+            shock = np.load(f)
+            tone = np.load(f)
+            exp = nts.IntervalSet(exp[:,0],exp[:,1],time_units='us')
+            shock = nts.IntervalSet(shock[:,0],shock[:,1],time_units='us')
+            tone = nts.IntervalSet(tone[:,0],tone[:,1],time_units='us')
+            return (exp, shock, tone)
+        
+    exp = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[1,:])
+    shock = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[2,:])
+    tone = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[3,:])
+    
+    if save:
+        with open('intervals.npy', 'wb') as f:
+            np.save(f, exp)
+            np.save(f, shock)
+            np.save(f, tone)
+    
+    return (exp, shock, tone)
