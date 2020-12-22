@@ -176,7 +176,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,centered = True):
     '''
     
     if stop == 0:
-        stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons])
+        stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     bins = np.arange(start,stop,binSize)
     binned = []
     for neuron in neurons:
@@ -184,7 +184,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,centered = True):
         binned.append(hist)
         
     if centered:
-        b = np.convolve(b,[.5,.5])[1::]
+        b = np.convolve(b,[.5,.5],'same')[1::]
     return np.array(binned),b
 
 def transitions_times(states,epsilon = 1):
