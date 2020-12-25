@@ -255,10 +255,11 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
+def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16',verbose = False):
     
     p = session+".lfp"
-    print('Load LFP from ' + p)
+    if verbose:
+        print('Load LFP from ' + p)
     # From Guillaume viejo
     import neuroseries as nts
     bytes_size = 2
