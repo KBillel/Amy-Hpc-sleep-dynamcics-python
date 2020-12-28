@@ -275,6 +275,21 @@ def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int
         timestep = np.arange(0, len(data))/frequency+start
         return nts.TsdFrame(timestep, data[:,channel], time_units = 's')
 
+def lfp_in_intervals(nchannels,channel,intervals):
+    t = np.array([])
+    lfps = np.array([])
+
+    for start,stop in zip(intervals.as_units('s').start,intervals.as_units('s').end):
+
+        lfp = bk.load.lfp(start,stop,nchannels,channel)
+
+        t = np.append(t,lfp.index)
+        lfps = np.append(lfps,lfp.values)
+
+
+    lfps = nts.Tsd(t,lfps)
+    
+    return lfps    
 
 
 #####

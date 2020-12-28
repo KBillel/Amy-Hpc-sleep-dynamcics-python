@@ -240,3 +240,13 @@ def transitions_times(states,epsilon = 1):
             
             transitions_timing[items] = nts.Ts(t = np.array(transitions_timing[items]))
     return transitions_intervals,transitions_timing
+
+
+def nts_smooth(y,m,std):
+    g = scipy.signal.gaussian(m,std)
+    g = g/g.sum()
+    
+    conv = np.convolve(y.values,g,'same')
+    
+    y = nts.Tsd(y.index.values,conv)
+    return y
