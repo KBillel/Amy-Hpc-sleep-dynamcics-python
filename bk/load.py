@@ -24,7 +24,7 @@ def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     #Variable are stored in global variables.
     
         #Create Global variable that allow for all function to know in wich session we are this usefull only for variable that are going to be recurentyly used. Do not overuse this functionnality as it can add inconstansies. 
-    global session, path, rat, day
+    global session, path, rat, day,n_channels
 
     
     session_index = pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
@@ -265,6 +265,8 @@ def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int
     bytes_size = 2
     start_index = int(start*frequency*n_channels*bytes_size)
     stop_index = int(stop*frequency*n_channels*bytes_size)
+    #In order not to read after the file
+    if stop_index > os.path.getsize(p): stop_index = os.path.getsize(p)
     fp = np.memmap(p, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
     data = np.array(fp).reshape(len(fp)//n_channels, n_channels)
 
@@ -280,9 +282,9 @@ def lfp_in_intervals(nchannels,channel,intervals):
     lfps = np.array([])
 
     for start,stop in zip(intervals.as_units('s').start,intervals.as_units('s').end):
-
+        start = np.round(start,decimals = 1)
+        stop = np.round(stop,decimals = 1)
         lfp = bk.load.lfp(start,stop,nchannels,channel)
-
         t = np.append(t,lfp.index)
         lfps = np.append(lfps,lfp.values)
 
