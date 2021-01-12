@@ -167,7 +167,7 @@ def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     return all_speed
 
-def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,centered = True):
+def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered = True):
     '''
         Bin neuronal spikes with difine binSize.
         If no start/stop provided will run trought all the data
@@ -177,15 +177,21 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,centered = True):
     
     if stop == 0:
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
+    
     bins = np.arange(start,stop,binSize)
+    if nbins: bins = nbins
+
     binned = []
+    
+
+    # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
     for neuron in neurons:
-        hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
+        hist,b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
         binned.append(hist)
         
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
-    return np.array(binned),b
+    return b,np.array(binned)
 
 def transitions_times(states,epsilon = 1):
     '''

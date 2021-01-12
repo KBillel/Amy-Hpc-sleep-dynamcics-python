@@ -10,7 +10,7 @@ class IntervalSet(pd.DataFrame):
     a :py:class:`pandas.DataFrame` representing a (irregular) set of time intervals in elapsed time,
     with relative operations
     """
-    def __init__(self, start, end=None, time_units=None, expect_fix=False, **kwargs):
+    def __init__(self, start, end=None, time_units=None, expect_fix=False, force_no_fix = False,**kwargs):
         """
         makes a interval_set.
 
@@ -51,15 +51,16 @@ class IntervalSet(pd.DataFrame):
         if len(start) != len(end):
             msg = "start and end not of the same length"
             to_fix = True
+            
         else:
             # noinspection PyUnresolvedReferences
             if (start > end).any():
                 msg = "some ends precede the relative start"
-                to_fix = True
+                if not force_no_fix: to_fix = True
             # noinspection PyUnresolvedReferences
             if (end[:-1] > start[1:]).any():
                 msg = "some start precede the previous end"
-                to_fix = True
+                if not force_no_fix: to_fix = True
 
         if to_fix and not expect_fix:
             warn(msg, UserWarning)
