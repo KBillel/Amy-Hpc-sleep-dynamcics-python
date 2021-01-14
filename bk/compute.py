@@ -145,6 +145,16 @@ def TTL_to_times(TTL,Fs = 20000):
     
     return t_TTL/Fs
 
+def old_speed(pos,value_gaussian_filter,pixel = 0.43):
+    x_speed = np.diff(pos.as_units('s')['x'])/np.diff(pos.as_units('s').index)
+    y_speed = np.diff(pos.as_units('s')['y'])/np.diff(pos.as_units('s').index)
+
+    v = np.sqrt(x_speed**2 + y_speed**2)*pixel
+    
+    v = scipy.ndimage.gaussian_filter1d(v,value_gaussian_filter,axis=0)
+    v = nts.Tsd(t = pos.index.values[:-1],d = v)
+    
+    return v
 def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     body = []
