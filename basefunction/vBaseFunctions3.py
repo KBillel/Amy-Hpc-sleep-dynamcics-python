@@ -1,4 +1,4 @@
-from peakdetect import detect_peaks
+# from peakdetect import detect_peaks
 import numpy as np
 import os as os
 import time as time 
