@@ -7,7 +7,7 @@ from progressbar import ProgressBar
 import time
 import pickle
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
 from IPython.display import clear_output
 
 import os
@@ -61,7 +61,7 @@ def batch(func,verbose = False):
     
     error = []
     output_dict = {}
-    for path in pbar(session_index['Path']):
+    for path in tqdm(session_index['Path']):
 #         os.chdir(path)
         session = path.split('\\')[2]
         print('Loading Data from ' + session)
