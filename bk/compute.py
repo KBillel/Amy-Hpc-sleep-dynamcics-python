@@ -1,6 +1,6 @@
 import numpy as np
 import neuroseries as nts
-
+from tqdm import tqdm
 import os
 import scipy.stats
 
@@ -191,17 +191,16 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered =
     bins = np.arange(start,stop,binSize)
     if nbins: bins = nbins
 
-    binned = []
+    binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
     
 
     # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
-    for neuron in neurons:
-        hist,b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
-        binned.append(hist)
-        
+    for i,neuron in enumerate(neurons):
+        binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
+
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
-    return b,np.array(binned)
+    return b,binned
 
 def transitions_times(states,epsilon = 1):
     '''
