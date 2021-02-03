@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd 
 import neuroseries as nts
 
-def rasterPlot(neurons,window,col = 'black'):
+def rasterPlot(neurons,window,col = 'black',width= 0.5,height = 1,offsets = 1):
     window = nts.IntervalSet(window[:,0],window[:,1],time_units = 's')
     neurons_np = []
     
@@ -16,7 +16,7 @@ def rasterPlot(neurons,window,col = 'black'):
     neurons_np = np.array(neurons_np,dtype = 'object')
     
     
-    plt.eventplot(neurons_np,color = col)
+    plt.eventplot(neurons_np,color = col,linewidth = width,linelengths=height,lineoffsets=offsets)
     plt.ylabel('Neurons')
     plt.xlabel('Time(s)')
     

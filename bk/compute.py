@@ -1,6 +1,6 @@
 import numpy as np
 import neuroseries as nts
-import bk.load
+from tqdm import tqdm
 import os
 import scipy.stats
 
@@ -145,6 +145,17 @@ def TTL_to_times(TTL,Fs = 20000):
     
     return t_TTL/Fs
 
+def old_speed(pos,value_gaussian_filter,pixel = 0.43):
+    x_speed = np.diff(pos.as_units('s')['x'])/np.diff(pos.as_units('s').index)
+    y_speed = np.diff(pos.as_units('s')['y'])/np.diff(pos.as_units('s').index)
+
+    v = np.sqrt(x_speed**2 + y_speed**2)*pixel
+    
+    v = scipy.ndimage.gaussian_filter1d(v,value_gaussian_filter,axis=0)
+    v = nts.Tsd(t = pos.index.values[:-1],d = v)
+    
+    return v
+	
 def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     body = []
@@ -167,16 +178,94 @@ def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     return all_speed
 
-def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0):
+def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered = True):
+    '''
+        Bin neuronal spikes with difine binSize.
+        If no start/stop provided will run trought all the data
+        
+        If centered will return the center of each bin. Otherwise will return edges
+    '''
+    
     if stop == 0:
-        stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons])
+        stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
+    
     bins = np.arange(start,stop,binSize)
-    binned = []
-    for neuron in neurons:
-        hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
-        binned.append(hist)
-    return np.array(binned),b
+    if nbins: bins = nbins
 
+    binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
+    
+
+    # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
+    for i,neuron in enumerate(neurons):
+        binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
+
+    if centered:
+        b = np.convolve(b,[.5,.5],'same')[1::]
+    return b,binned
+
+
+def transitions_times(states,epsilon = 1):
+    '''
+        states : dict of nts.Interval_Set
+        
+        This function compute transition in between Intervals in a dict.
+        It returns a new dict with intervals and when the transition occurs
+        
+        epsilon : tolerance time delay between state
+        
+        This function does NOT WORK for triple transitions (ex : sws/rem/sws) ... 
+        
+    '''
+    
+    import itertools
+    
+    empty_state = []
+    for state in states:
+        if len(states[state]) == 0:
+            empty_state.append(state)
+            continue
+        states[state] = states[state].drop_short_intervals(1)
+    
+    
+    for i in empty_state: del states[i]
+        
+    transitions_intervals = {}
+    transitions_timing = {}
+    
+    for items in itertools.permutations(states.keys(),2):
+#         states[items[0]] = states[items[0]].drop_short_intervals(1)
+#         states[items[1]] = states[items[1]].drop_short_intervals(1)
+        
+        print('Looking at transition from',items[0],' to ',items[1])
+        end = nts.Ts(np.array(states[items[0]].end + (epsilon * 1_000_000)+1))
+        in_next_epoch = states[items[1]].in_interval(end)
+        
+        transitions_intervals.update({items:[]})
+        transitions_timing.update({items:[]})
+
+        for n,t in enumerate(in_next_epoch):
+            if np.isnan(t): continue            
+            start = states[items[0]].iloc[n].start
+            trans = int(np.mean([states[items[0]].iloc[n].end,states[items[1]].iloc[int(t)].start]))
+            end  = states[items[1]].iloc[int(t)].end
+            transitions_intervals[items].append([start,end])
+            transitions_timing[items].append(trans)
+        
+        if  not transitions_timing[items] == []:      
+            transitions_intervals[items] = np.array(transitions_intervals[items])
+            transitions_intervals[items] = nts.IntervalSet(transitions_intervals[items][:,0],transitions_intervals[items][:,1])
+            
+            transitions_timing[items] = nts.Ts(t = np.array(transitions_timing[items]))
+    return transitions_intervals,transitions_timing
+
+def nts_smooth(y,m,std):
+    g = scipy.signal.gaussian(m,std)
+    g = g/g.sum()
+    
+    conv = np.convolve(y.values,g,'same')
+    
+    y = nts.Tsd(y.index.values,conv)
+    return y
 
 def intervals_exp(force_reload = False, save = False):
     files = os.listdir()

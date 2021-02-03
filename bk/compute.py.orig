@@ -1,9 +1,12 @@
 import numpy as np
 import neuroseries as nts
+<<<<<<< HEAD
 from tqdm import tqdm
+=======
+import bk.load
+>>>>>>> ptsd_project_unicorn
 import os
 import scipy.stats
-import bk.load
 
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
@@ -190,7 +193,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered =
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     
     bins = np.arange(start,stop,binSize)
-
+<<<<<<< HEAD
     if nbins: bins = nbins
 
     binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
@@ -268,7 +271,7 @@ def nts_smooth(y,m,std):
     y = nts.Tsd(y.index.values,conv)
     return y
 
-
+=======
     binned = []
     for neuron in neurons:
         hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
@@ -299,4 +302,4 @@ def intervals_exp(force_reload = False, save = False):
             np.save(f, tone)
     
     return (exp, shock, tone)
-
+>>>>>>> ptsd_project_unicorn
