@@ -3,6 +3,7 @@ import neuroseries as nts
 from tqdm import tqdm
 import os
 import scipy.stats
+import bk.load
 
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
@@ -155,7 +156,6 @@ def old_speed(pos,value_gaussian_filter,pixel = 0.43):
     v = nts.Tsd(t = pos.index.values[:-1],d = v)
     
     return v
-	
 def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     body = []
@@ -190,6 +190,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered =
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     
     bins = np.arange(start,stop,binSize)
+
     if nbins: bins = nbins
 
     binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
@@ -202,7 +203,6 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered =
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
     return b,binned
-
 
 def transitions_times(states,epsilon = 1):
     '''
@@ -258,6 +258,7 @@ def transitions_times(states,epsilon = 1):
             transitions_timing[items] = nts.Ts(t = np.array(transitions_timing[items]))
     return transitions_intervals,transitions_timing
 
+
 def nts_smooth(y,m,std):
     g = scipy.signal.gaussian(m,std)
     g = g/g.sum()
@@ -266,6 +267,14 @@ def nts_smooth(y,m,std):
     
     y = nts.Tsd(y.index.values,conv)
     return y
+
+
+    binned = []
+    for neuron in neurons:
+        hist,b = np.histogram(neuron.as_units('s').index,bins = bins)
+        binned.append(hist)
+    return np.array(binned),b
+
 
 def intervals_exp(force_reload = False, save = False):
     files = os.listdir()
@@ -290,3 +299,4 @@ def intervals_exp(force_reload = False, save = False):
             np.save(f, tone)
     
     return (exp, shock, tone)
+

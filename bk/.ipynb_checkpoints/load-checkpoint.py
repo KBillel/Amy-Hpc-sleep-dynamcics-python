@@ -7,7 +7,7 @@ from progressbar import ProgressBar
 import time
 import pickle
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+
 from IPython.display import clear_output
 
 import os
@@ -17,13 +17,14 @@ def sessions():
     return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
 
 def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
+    
     #Author : BK 08/20
     #Input Path to the session to load
     #output : True if loading was done correctly
     #Variable are stored in global variables.
     
         #Create Global variable that allow for all function to know in wich session we are this usefull only for variable that are going to be recurentyly used. Do not overuse this functionnality as it can add inconstansies. 
-    global session, path, rat, day,n_channels
+    global session, path, rat, day
 
     
     session_index = pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
@@ -60,7 +61,7 @@ def batch(func,verbose = False):
     
     error = []
     output_dict = {}
-    for path in tqdm(session_index['Path']):
+    for path in pbar(session_index['Path']):
 #         os.chdir(path)
         session = path.split('\\')[2]
         print('Loading Data from ' + session)
@@ -155,7 +156,7 @@ def loadSpikeData(path, index=None, fs = 20000):
         neurons = np.load(path+'//' + session +'-neurons.npy',allow_pickle=True)
         print(session +'-metadata.npy')
         shanks = np.load(path+'//' + session +'-metadata.npy',allow_pickle=True)
-        shanks = pd.DataFrame(shanks,columns = ['Rat','Day','Shank','Id','Region','Type'])
+        shanks = pd.DataFrame(shanks,columns = ['Shank','Id','Region','Type'])
         return neurons,shanks
                       
     files = os.listdir(path)
@@ -259,18 +260,15 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16',verbose = False):
+def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16'):
     
     p = session+".lfp"
-    if verbose:
-        print('Load LFP from ' + p)
+    print('Load LFP from ' + p)
     # From Guillaume viejo
     import neuroseries as nts
     bytes_size = 2
     start_index = int(start*frequency*n_channels*bytes_size)
     stop_index = int(stop*frequency*n_channels*bytes_size)
-    #In order not to read after the file
-    if stop_index > os.path.getsize(p): stop_index = os.path.getsize(p)
     fp = np.memmap(p, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
     data = np.array(fp).reshape(len(fp)//n_channels, n_channels)
 
@@ -281,21 +279,6 @@ def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int
         timestep = np.arange(0, len(data))/frequency+start
         return nts.TsdFrame(timestep, data[:,channel], time_units = 's')
 
-def lfp_in_intervals(nchannels,channel,intervals):
-    t = np.array([])
-    lfps = np.array([])
-
-    for start,stop in zip(intervals.as_units('s').start,intervals.as_units('s').end):
-        start = np.round(start,decimals = 1)
-        stop = np.round(stop,decimals = 1)
-        lfp = bk.load.lfp(start,stop,nchannels,channel)
-        t = np.append(t,lfp.index)
-        lfps = np.append(lfps,lfp.values)
-
-
-    lfps = nts.Tsd(t,lfps)
-    
-    return lfps    
 
 
 #####
