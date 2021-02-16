@@ -253,7 +253,7 @@ def transitions_times(states,epsilon = 1):
         
         if  not transitions_timing[items] == []:      
             transitions_intervals[items] = np.array(transitions_intervals[items])
-            transitions_intervals[items] = nts.IntervalSet(transitions_intervals[items][:,0],transitions_intervals[items][:,1])
+            transitions_intervals[items] = nts.IntervalSet(transitions_intervals[items][:,0],transitions_intervals[items][:,1],force_no_fix = True)
             
             transitions_timing[items] = nts.Ts(t = np.array(transitions_timing[items]))
     return transitions_intervals,transitions_timing
