@@ -290,3 +290,44 @@ def intervals_exp(force_reload = False, save = False):
             np.save(f, tone)
     
     return (exp, shock, tone)
+
+def psth(neurons,stimulus,binSize,win,average = True):
+    if isinstance(neurons,nts.time_series.Tsd): 
+        neurons = np.array(neurons,'object')
+    winLen = int((win[1] - win[0])/binSize)
+    window = np.arange(winLen,dtype = int)-int(winLen/2)
+    stim_bin = (stimulus/binSize).astype('int')
+    t,binned = binSpikes(neurons,binSize,start = 0, stop = stimulus[-1]+win[-1])
+    psth = np.empty((stimulus.size,len(neurons),winLen))
+    
+    for i,t in tqdm(enumerate(stim_bin)):
+        psth[i] = binned[:,t+window]
+    if average:    
+        psth = np.mean(psth,0).T
+    t = window*binSize
+    return t,psth
+
+
+def crosscorrelogram(neurons,binSize,win):
+    if isinstance(neurons,nts.time_series.Tsd): 
+        neurons = np.array(neurons,'object')
+    winLen = int((win[1] - win[0])/binSize)
+    window = np.arange(winLen,dtype = int)-int(winLen/2)
+    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'float16')
+    
+    last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
+    t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
+
+    for i,n in tqdm(enumerate(neurons),total = len(neurons)):
+        stimulus = n.as_units('s').index
+        stim_bin = (stimulus/binSize).astype('int')
+        psth = np.empty((stimulus.size,len(neurons),winLen),dtype = 'float16')
+
+        for j,t in enumerate(stim_bin):
+            psth[j] = binned[:,t+window]
+
+        psth = np.mean(psth,0).T
+        crosscorr[:,i] = psth
+        t = window*binSize
+        
+    return t,crosscorr
