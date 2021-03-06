@@ -314,7 +314,6 @@ def crosscorrelogram(neurons,binSize,win):
     winLen = int((win[1] - win[0])/binSize)
     window = np.arange(winLen,dtype = int)-int(winLen/2)
     crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'float16')
-    
     last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
     t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
 
@@ -325,8 +324,9 @@ def crosscorrelogram(neurons,binSize,win):
 
         for j,t in enumerate(stim_bin):
             psth[j] = binned[:,t+window]
+#             psth[j][:,window == 0] -= 1
 
-        psth = np.mean(psth,0).T
+        psth = np.sum(psth,0).T
         crosscorr[:,i] = psth
         t = window*binSize
         
