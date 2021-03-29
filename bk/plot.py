@@ -3,7 +3,16 @@ import numpy as np
 import pandas as pd 
 import neuroseries as nts
 
-def rasterPlot(neurons,window,col = 'black',width= 0.5,height = 1,offsets = 1):
+def rasterPlot(neurons,window = None,col = 'black',width= 0.5,height = 1,offsets = 1):
+    if window == None:
+        last_spike = np.empty(len(neurons))
+        for i,n in enumerate(neurons):
+            last_spike[i] = n.as_units('s').index.values[-1]
+        
+        window = np.array([[0,np.max(last_spike)]])
+            
+        
+    
     window = nts.IntervalSet(window[:,0],window[:,1],time_units = 's')
     neurons_np = []
     
