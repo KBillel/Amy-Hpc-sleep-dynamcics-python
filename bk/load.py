@@ -118,8 +118,25 @@ def states():
     states_ = {}
     for state in states:
         states_.update({state:nts.IntervalSet(states[state][:,0],states[state][:,1],time_units = 's')})
-        
+    
     return states_
+
+def run_intervals():
+    trackruntimes = scipy.io.loadmat(session + '-TrackRunTimes.mat')['trackruntimes']
+    trackruntimes = nts.IntervalSet(trackruntimes[:,0],trackruntimes[:,1],time_units='s')
+    
+    return trackruntimes
+
+def laps():
+    laps = {}
+    danger = scipy.io.loadmat(f'{session}-LapType.mat')['aplaps'][0][0][0]
+    safe = scipy.io.loadmat(f'{session}-LapType.mat')['safelaps'][0][0][0]
+
+    danger = nts.IntervalSet(danger[:,0],danger[:,1],time_units='s')
+    safe = nts.IntervalSet(safe[:,0],safe[:,1],time_units='s')
+
+    laps.update({'danger':danger,'safe':safe})
+    return laps
 
 def loadSpikeData(path, index=None, fs = 20000):  
     ### Adapted from Viejo github https://github.com/PeyracheLab/StarterPack/blob/master/python/wrappers.py
