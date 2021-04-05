@@ -204,7 +204,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered =
     return b,binned
 
 
-def transitions_times(states,epsilon = 1):
+def transitions_times(states,epsilon = 1,verbose = False):
     '''
         states : dict of nts.Interval_Set
         
@@ -236,7 +236,7 @@ def transitions_times(states,epsilon = 1):
 #         states[items[0]] = states[items[0]].drop_short_intervals(1)
 #         states[items[1]] = states[items[1]].drop_short_intervals(1)
         
-        print('Looking at transition from',items[0],' to ',items[1])
+        if verbose: print('Looking at transition from',items[0],' to ',items[1])
         end = nts.Ts(np.array(states[items[0]].end + (epsilon * 1_000_000)+1))
         in_next_epoch = states[items[1]].in_interval(end)
         
