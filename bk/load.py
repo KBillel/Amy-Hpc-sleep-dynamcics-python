@@ -121,6 +121,18 @@ def states():
     
     return states_
 
+def ripples():
+    ripples_ = scipy.io.loadmat(f'{bk.load.session}-RippleFiring.mat')['ripples']['allsws'][0][0]
+#     ripples_ = pd.DataFrame(data = ripples,columns=['start','peak','stop'])
+
+    columns = ['start','peak','stop']
+    
+    ripples = {}
+    for i,c in zip(range(ripples_.shape[1]),columns):
+        ripples.update({c:nts.Ts(ripples_[:,i],time_units='s')})
+    return ripples
+
+
 def run_intervals():
     trackruntimes = scipy.io.loadmat(session + '-TrackRunTimes.mat')['trackruntimes']
     trackruntimes = nts.IntervalSet(trackruntimes[:,0],trackruntimes[:,1],time_units='s')
@@ -276,9 +288,11 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16',verbose = False):
+def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16',dat = False,verbose = False):
     
     p = session+".lfp"
+    if dat: p = session+'.dat'
+    
     if verbose:
         print('Load LFP from ' + p)
     # From Guillaume viejo
