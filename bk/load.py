@@ -43,6 +43,19 @@ def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     
     return True
 
+def xml(session):
+    tree = ET.parse(session+'.xml')
+    root = tree.getroot()
+    
+    xmlInfo = {}
+    for elem in root:
+        for subelem in elem:
+            try: 
+                xmlInfo.update({subelem.tag:int(subelem.text)})
+            except:
+                pass
+    return xmlInfo
+
 def batch(func,verbose = False):
     
     #Author : BK

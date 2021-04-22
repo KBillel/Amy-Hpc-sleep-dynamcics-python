@@ -7,9 +7,11 @@ import scipy.signal
 import matplotlib.pyplot as plt
 import time
 
+from datetime import datetime
 
 import xml.etree.ElementTree as ET
 import cv2
+import re
 
 from tqdm import tqdm
 
@@ -70,7 +72,7 @@ def xml(session):
                 pass
     return xmlInfo
 
-def concat_lfp_dat(session,path_dat):
+def concat_lfp_dat(session,path_dat,subsessions):
     
     print('Starting dat concatenation')
     
@@ -111,7 +113,7 @@ def concat_lfp_dat(session,path_dat):
         print('Concat Succefull')
         print('Creating cat event file')
         
-        t_rec = []
+        t_rec = [0]
         for p in path_dat:
             t = os.path.getsize(p)/(fs*nChannels*bytePerSample)
             print(t)
@@ -119,8 +121,12 @@ def concat_lfp_dat(session,path_dat):
         concat_event = np.cumsum(t_rec)*1000 # 1000 is for conversion in ms
         
         with open(session+'.cat.evt','w') as f:
-            for c in concat_event:
-                f.write(str(c)+ ' cat\n')
+            print(concat_event)
+            print(subsessions)
+            for i,s in enumerate(subsessions):
+                print(i)
+                f.write(str(concat_event[i])+ f' {subsessions[i]} Start \n')
+                f.write(str(concat_event[i+1])+ f' {subsessions[i]} End \n')
         return 1
     else:
         print('Error, please try again. Check freespace on your drives. You need at least',np.sum(originalFileSize)/1e9,'GB')
@@ -142,11 +148,17 @@ def concat_digitalin(session,path_digitalin,path_videos,nchannels = 16):
     
     pbar = tqdm(total = int(finalSize/byteSize))
     # Reading all digitalin files in sub-session and comparate number of TTL with number of frames : 
+    
+    #Logs
+    with open(f'{session}-preprocess.log','a') as log_file:
+            log_file.write(f'\n\nNUMBER OF TTL AND TTLs CORRECTIONS\n\n')
+            log_file.close()
+            
     for p_digitalin,p_video in zip(path_digitalin,path_videos):
         data_ = load_digitalin(p_digitalin,nchannels)
         nTTL,lTTL = CountTTL(data_[0,:])
         nFrames = CountFrames(p_video)
-
+        time.sleep(0.1)
         if nTTL == nFrames: # Same number of frames and TTL is easy case, we don't do anaything
             print('NTTL',nTTL)
             print('Number of Frames',nFrames)
@@ -159,8 +171,22 @@ def concat_digitalin(session,path_digitalin,path_videos,nchannels = 16):
             data_[0,lTTL:] = False
             print('Counting new number of TTL : ' , CountTTL(data_[0,:])[0])
         else:
+            print('NTTL',nTTL)
+            print('Number of Frames',nFrames)
+            print('Last TTL was at ',lTTL)
             print('Some file might be corrupted, need to implement this')
-
+        oldnTTL = nTTL
+        nTTL = CountTTL(data_[0,:])[0]
+        
+       #Logs 
+        with open(f'{session}-preprocess.log','a') as log_file:
+            log_file.write(f'{p_digitalin} - {p_video}\n')
+            log_file.write(f'NTTL in digitalin file :                        {oldnTTL}\n')
+            log_file.write(f'nFrames in video file :                         {nFrames}\n')
+            log_file.write(f'Number of TTL after TTL corrections :           {nTTL}\n')
+            log_file.write(f'Delta Frames in the end                         {nTTL-nFrames}\n\n')
+            log_file.close()
+        
         # Anyway we concatenate digitalin in the RAM
         print('Concatenating digitalin in RAM')
         data = np.hstack((data,data_))
@@ -283,14 +309,51 @@ if __name__ == '__main__':
         
     session = path.rsplit('\\')[-1]
     os.chdir(path)
-
+    
+    print(f'Creating {session}-preprocess.log file')
+    #Logs
+    with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'{now} : Starting preprocessing of {session}\n')
+            log_file.close()
+    
+    path_md = f'{session}.md'
+    print(path_md)
+    if os.path.exists(path_md):
+        with open(path_md,'r') as f:
+            md_file = f.readlines()
+        subsessions = [re.findall('(?<=# )(.*)',l) for l in md_file]
+        subsessions = [s[0] for s in subsessions if s]
+        print(f'{path_md} was found')
+        print(len(subsessions),' subsessions were found')
+        for s in subsessions: print("    ",s)
+            
+            
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : MD files {path_md}\n')
+            for s in subsessions: log_file.write(f'{s}\n')
+            log_file.close()
+    else:
+        print('Could not find md file, are you taking notes ?')
+    
     # Looking for Dat (LFPs) files 
     path_dat = [[os.path.join(path,p,f) 
                  for f in os.listdir(os.path.join(path,p)) if f.startswith("amplifier_analogin_auxiliary") & f.endswith('.dat')][0] 
                 for p in os.listdir(path) if os.path.isdir(p)]
     print(len(path_dat),' dat files were found')
     for p in path_dat: print("    ",p)
-    print('It will be concatenated in this order')
+        
+    #Logs
+    with open(f'{session}-preprocess.log','a') as log_file:
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_file.write(f'\n{now} : DAT FILES \n')
+        for p in path_dat: log_file.write(f'{p}\n')
+        log_file.close()
+    
+    
+    
+    print('Files be concatenated in this order.')
 
 
     # Looking for digitalin.dat (TTLs and all digital signal)
@@ -299,6 +362,12 @@ if __name__ == '__main__':
                 for p in os.listdir(path) if os.path.isdir(p)]
     print(len(path_digitalin),' digitalin files were found')
     for p in path_digitalin: print("    ",p)
+        
+    with open(f'{session}-preprocess.log','a') as log_file:
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_file.write(f'\n{now} : DIGITALIN FILES\n')
+        for p in path_digitalin: log_file.write(f'{p}\n')
+        log_file.close()
 
 
     #Looking for videos (usefull for counting frames)
@@ -307,9 +376,21 @@ if __name__ == '__main__':
                 for p in os.listdir(path) if os.path.isdir(p)]
     print(len(path_videos)," Videos were founds : ")
     for p in path_videos: print("    ",p)
+    #Logs    
+    with open(f'{session}-preprocess.log','a') as log_file:
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_file.write(f'\n{now} : VIDEOS FILES\n')
+        for p in path_videos: log_file.write(f'{p}\n')
+        log_file.close()
 
     if not (len(path_dat)==len(path_digitalin)==len(path_videos)): 
         print('Not same number of dat, digitalin or videos, please check integrity of each subsession')
+    #Logs
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : WARNING\n')
+            for p in path_videos: log_file.write(f'Not same number of dat, digitalin or videos, please check integrity of each subsession')
+            log_file.close()
         raise ValueError
         sys.exit()
     
@@ -346,23 +427,94 @@ if __name__ == '__main__':
             extractLFP = False
             print('Concatenation of digitalin aborted')
     else: extractLFP = True
-    
+        
+        
+    ############
+    #DAT CONCAT#
+    ############    
     t = time.time()
-    if writeDat: concat_lfp_dat(session,path_dat)
+    if writeDat:
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : Starting Dat concatenation\n')
+            log_file.close()
+        concat_lfp_dat(session,path_dat,subsessions)
+    else:
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : Dat concatenation was skipped\n')
+            log_file.close()
     print('Dat concatenation done in',time.time()-t,'s')
     
+    with open(f'{session}-preprocess.log','a') as log_file:
+        log_file.write(f'Dat concatenation done in{time.time()-t} s\n')
+        log_file.close()
+
+    ##################
+    #DigitalIN CONCAT#
+    ##################    
     t = time.time()
-    if writeDigital: concat_digitalin(session,path_digitalin,path_videos)
+    if writeDigital:
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : Starting digitalin concatenation\n')
+            log_file.close()
+        concat_digitalin(session,path_digitalin,path_videos)
+    else:
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : Digitalin concatenation was skipped\n')
+            log_file.close()
     print('Digital in concatenation done in',time.time()-t,'s')
     
-    t = time.time()
-    if extractLFP: downsampleDatFileBK(path,nChannels,fs)
-    print('LFP extraction done in',time.time()-t,'s')
+    with open(f'{session}-preprocess.log','a') as log_file:
+        log_file.write(f'Digitalin concatenation done in {time.time()-t} s\n')
+        log_file.close()
 
         
-                
-    print('Session\'s length base on LFP dat file',os.path.getsize(session+'.dat')/(fs*nChannels*bytePerSample),'s')
-    print('Session\'s length base on digitalin.dat file',os.path.getsize('digitalin.dat')/(fs*bytePerSample),'s')
-    print('Session\'s length base on downsampled file',os.path.getsize(session+'.lfp')/(1250*nChannels*bytePerSample),'s')
+    #############
+    #LFP Extract#
+    #############         
+    t = time.time()
+    if extractLFP: 
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : Starting LFP Extraction\n')
+            log_file.close()
+        downsampleDatFileBK(path,nChannels,fs)
+    else:
+        with open(f'{session}-preprocess.log','a') as log_file:
+            now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            log_file.write(f'\n{now} : LFP Extraction Skipped\n')
+            log_file.close()
+            
+    print('LFP extraction done in',time.time()-t,'s')
+    with open(f'{session}-preprocess.log','a') as log_file:
+        log_file.write(f'LFP extraction done in {time.time()-t} s\n')
+        log_file.close()
+    
+    time.sleep(0.1)
+    
+    
+    len_dat = os.path.getsize(session+'.dat')/(fs*nChannels*bytePerSample)
+    len_digitalin = os.path.getsize('digitalin.dat')/(fs*bytePerSample)
+    len_lfp = os.path.getsize(session+'.lfp')/(1250*nChannels*bytePerSample)
+    
+    print('Session\'s length base on LFP dat file',len_dat,'s')
+    print('Session\'s length base on digitalin.dat file',len_digitalin,'s')
+    print('Session\'s length base on downsampled file',len_lfp,'s')
+    
+    
+    with open(f'{session}-preprocess.log','a') as log_file:
+        now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        log_file.write(f'\n\n{now} : CHECKING INTEGRITY OF THE DATA AFTER COPY\n')
+        log_file.write(f'Session s length base on LFP dat file {len_dat} s\n')
+        log_file.write(f'Session s length base on digitalin.dat file {len_digitalin} s\n')
+        log_file.write(f'Session s length base on downsampled file {len_lfp} s\n')
+        log_file.close()
 
+    
+        
+        
+    
     
