@@ -178,31 +178,43 @@ def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     return all_speed
 
-def binSpikes(neurons,binSize = 0.025,start = 0,stop = 0,nbins = None,centered = True):
+def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = False, centered = True):
     '''
         Bin neuronal spikes with difine binSize.
         If no start/stop provided will run trought all the data
         
+        If fast, will assume that two spikes cannot happen in the same bin. 
+        
         If centered will return the center of each bin. Otherwise will return edges
     '''
-    
-    if stop == 0:
+    if binSize < 0.025 and not fast: print(f"You are using {binSize} ms bins with the function fast off. Consider using \"Fast = True\" in order to speed up the computations")
+    if stop is None:
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     
     bins = np.arange(start,stop,binSize)
-    if nbins: bins = nbins
+    if nbins is not None: bins = nbins # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
 
-    binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
     
 
-    # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
-    for i,neuron in enumerate(neurons):
-        binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
+    
+    if not fast:
+        binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
+        for i,neuron in enumerate(neurons):
+            binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
+    elif fast:
+        binned = np.zeros((len(neurons),len(bins)),dtype = np.bool)
+        b = bins
+        for i,neuron in enumerate(neurons):
+            spike_bin = np.unique((neuron.times(units = 's')/binSize).astype(np.int))
+            binned[i,spike_bin] = 1
+        
 
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
     return b,binned
-
+    
+    
+    
 
 def transitions_times(states,epsilon = 1,verbose = False):
     '''
