@@ -192,13 +192,12 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     
     bins = np.arange(start,stop,binSize)
-    if nbins is not None: bins = nbins # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
-
-    
+    if nbins is not None: bins = np.linspace(start,stop,nbins+1) # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
 
     
     if not fast:
-        binned = np.empty((len(neurons),len(bins)-1),dtype = 'int8')
+
+        binned = np.empty((len(neurons),len(bins)-1),dtype = 'int16')
         for i,neuron in enumerate(neurons):
             binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
     elif fast:

@@ -3,7 +3,6 @@ import pandas as pd
 import neuroseries as nts
 import scipy.io
 import sys
-from progressbar import ProgressBar
 import time
 import pickle
 import matplotlib.pyplot as plt
@@ -43,6 +42,30 @@ def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     
     return True
 
+def current_session_linux(base_folder = '/home/billel/Data/GG-Dataset/',local_path = 'Rat08/Rat08-20130713'):
+    #Author : BK 08/20
+    #Input Path to the session to load
+    #output : True if loading was done correctly
+    #Variable are stored in global variables.
+    
+        #Create Global variable that allow for all function to know in wich session we are this usefull only for variable that are going to be recurentyly used. Do not overuse this functionnality as it can add inconstansies. 
+    global base,session, path, rat, day,n_channels
+    base = base_folder
+    
+    os.chdir(base)
+    session_index = pd.read_csv('relative_session_indexing.csv')
+    
+    session = local_path.split('/')[1]
+    rat = session_index['Rat'][session_index['Path'] == local_path].values[0]
+    day = session_index['Day'][session_index['Path'] == local_path].values[0]
+    path = os.path.join(base,local_path)
+    os.chdir(path)
+
+    print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
+    print('Working with session ' + session + ' @ ' + path)
+   
+    
+    return True
 def xml(session):
     tree = ET.parse(session+'.xml')
     root = tree.getroot()
@@ -56,7 +79,7 @@ def xml(session):
                 pass
     return xmlInfo
 
-def batch(func,verbose = False):
+def batch(func,verbose = False,linux = False):
     
     #Author : BK
     #Date : 08/20
@@ -69,17 +92,19 @@ def batch(func,verbose = False):
     
     t = time.time()
     session_index = pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
-    pbar = ProgressBar()
-    
+    if linux: 
+        os.chdir(base)
+        session_index = pd.read_csv('relative_session_indexing.csv')
+
     error = []
     output_dict = {}
     for path in tqdm(session_index['Path']):
-#         os.chdir(path)
         session = path.split('\\')[2]
+        if linux: session = path.split('/')[1]
         print('Loading Data from ' + session)
         
         try:
-            output = func(path)
+            output = func(os.path.join(base,path))
             output_dict.update({session:output})
             if not verbose: clear_output()
         except:
