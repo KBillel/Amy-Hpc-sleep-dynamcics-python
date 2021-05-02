@@ -91,20 +91,25 @@ def batch(func,verbose = False,linux = False):
     
     
     t = time.time()
-    session_index = pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
+    
     if linux: 
         os.chdir(base)
         session_index = pd.read_csv('relative_session_indexing.csv')
+    else: 
+        session_index = pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
 
     error = []
     output_dict = {}
     for path in tqdm(session_index['Path']):
-        session = path.split('\\')[2]
-        if linux: session = path.split('/')[1]
+        
+        if linux: 
+            session = path.split('/')[1]
+        else:
+            session = path.split('\\')[2]
         print('Loading Data from ' + session)
         
         try:
-            output = func(os.path.join(base,path))
+            output = func(os.path.join(path))
             output_dict.update({session:output})
             if not verbose: clear_output()
         except:

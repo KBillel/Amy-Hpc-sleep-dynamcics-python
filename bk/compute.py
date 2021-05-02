@@ -155,7 +155,7 @@ def old_speed(pos,value_gaussian_filter,pixel = 0.43):
     v = nts.Tsd(t = pos.index.values[:-1],d = v)
     
     return v
-	
+
 def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     body = []
@@ -196,7 +196,6 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
 
     
     if not fast:
-
         binned = np.empty((len(neurons),len(bins)-1),dtype = 'int16')
         for i,neuron in enumerate(neurons):
             binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
