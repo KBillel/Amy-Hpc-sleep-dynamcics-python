@@ -11,14 +11,12 @@ def rasterPlot(neurons,window = None,col = 'black',width= 0.5,height = 1,offsets
         
         window = np.array([[0,np.max(last_spike)]])
             
-        
     if type(window) is list: window = np.array([window])
     window = nts.IntervalSet(window[:,0],window[:,1],time_units = 's')
     neurons_np = []
     
     if isinstance(neurons,nts.time_series.Tsd):
         neurons = [neurons]
-    print(type(neurons))
     for neuron in neurons:
         neurons_np.append(neuron.restrict(window).as_units('s').index)
 

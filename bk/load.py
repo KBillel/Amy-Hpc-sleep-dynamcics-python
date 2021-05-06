@@ -8,7 +8,7 @@ import pickle
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from IPython.display import clear_output
-
+import xml.etree.ElementTree as ET
 import os
 import bk.compute
 
@@ -31,6 +31,8 @@ def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     session = path.split('\\')[2]
     rat = session_index['Rat'][session_index['Path'] == path].values[0]
     day = session_index['Day'][session_index['Path'] == path].values[0]
+    n_channels = xml(session)['nChannels']
+    
     
     print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
     print('Working with session ' + session + ' @ ' + path)
@@ -60,7 +62,10 @@ def current_session_linux(base_folder = '/home/billel/Data/GG-Dataset/',local_pa
     day = session_index['Day'][session_index['Path'] == local_path].values[0]
     path = os.path.join(base,local_path)
     os.chdir(path)
-
+    
+    
+    n_channels = xml(session)['nChannels']
+    
     print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
     print('Working with session ' + session + ' @ ' + path)
    
