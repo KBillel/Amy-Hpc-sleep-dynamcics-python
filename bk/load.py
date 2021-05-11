@@ -64,14 +64,14 @@ def current_session_linux(base_folder = '/home/billel/Data/GG-Dataset/',local_pa
     os.chdir(path)
     
     
-    n_channels = xml(session)['nChannels']
+    n_channels = xml()['nChannels']
     
     print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
     print('Working with session ' + session + ' @ ' + path)
    
     
     return True
-def xml(session):
+def xml():
     tree = ET.parse(session+'.xml')
     root = tree.getroot()
     
@@ -186,6 +186,13 @@ def run_intervals():
     trackruntimes = nts.IntervalSet(trackruntimes[:,0],trackruntimes[:,1],time_units='s')
     
     return trackruntimes
+
+def sleep():
+    runs = scipy.io.loadmat('runintervals.mat')['runintervals']
+    pre_sleep = nts.IntervalSet(start = runs[0,1],end = runs[1,0],time_units = 's')
+    post_sleep = nts.IntervalSet(start = runs[1,1],end = runs[2,0],time_units = 's')
+    
+    return pre_sleep,post_sleep
 
 def laps():
     laps = {}
@@ -336,7 +343,7 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(start, stop, n_channels=90, channel=64, frequency=1250.0, precision='int16',dat = False,verbose = False):
+def lfp(channel,start, stop, frequency=1250.0, precision='int16',dat = False,verbose = False):
     
     p = session+".lfp"
     if dat: p = session+'.dat'
