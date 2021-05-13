@@ -84,7 +84,7 @@ def xml():
                 pass
     return xmlInfo
 
-def batch(func,verbose = False,linux = False):
+def batch(func,arg,verbose = False,linux = False):
     
     #Author : BK
     #Date : 08/20
@@ -114,7 +114,7 @@ def batch(func,verbose = False,linux = False):
         print('Loading Data from ' + session)
         
         try:
-            output = func(os.path.join(path))
+            output = func(os.path.join(path),arg)
             output_dict.update({session:output})
             if not verbose: clear_output()
         except:
