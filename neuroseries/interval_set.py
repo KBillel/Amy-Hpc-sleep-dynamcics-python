@@ -84,7 +84,13 @@ class IntervalSet(pd.DataFrame):
         self.r_cache = None
         self._metadata = ['nts_class']
         self.nts_class = self.__class__.__name__
-
+        
+    def duration(self, time_units = None):
+        s = self['start']
+        e = self['end']
+        
+        return TimeUnits.return_timestamps(np.array(e-s),time_units)
+        
     def time_span(self):
         """
         Time span of the interval set.
