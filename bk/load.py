@@ -31,14 +31,14 @@ def current_session(path_local = 'Z:\Rat08\Rat08-20130713'):
     session = path.split('\\')[2]
     rat = session_index['Rat'][session_index['Path'] == path].values[0]
     day = session_index['Day'][session_index['Path'] == path].values[0]
-    n_channels = xml(session)['nChannels']
+    os.chdir(path)
+    n_channels = xml()['nChannels']
     
     
     print('Rat : ' + str(int(rat)) + ' on day : ' + str(int(day)))
     print('Working with session ' + session + ' @ ' + path)
     
-    
-    os.chdir(path)
+    print(path)
     
    
     
@@ -140,6 +140,45 @@ def get_session_path(session_name):
     session_path = os.path.join(rat_path,session_name)
     return session_path
 
+def shank_to_structure(rat,day,shank):
+    structures_path = os.path.join(base,'All-Rats/Structures/structures.mat')
+    structures = scipy.io.loadmat(structures_path)
+    useless  = ['__header__','__version__','__globals__','basal','olfact']
+    for u in useless:
+        del structures[u]
+        
+    for stru,array in structures.items(): 
+        filtered_array = array[np.all(array == [rat,day,shank],1)]
+        if np.any(filtered_array):
+            return stru
+        
+def channels():   
+    tree = ET.parse(session+'.xml')
+    root = tree.getroot()
+    shank_channels = {}
+    
+    i = 0
+    for anatomicalDescription in root.iter('anatomicalDescription'): 
+        for channelGroups in anatomicalDescription.iter('channelGroups'):
+            for group in channelGroups.iter('group'):
+                i += 1
+                channels = []
+                for channel in group.iter('channel'):
+                    channels.append(int(channel.text))
+                stru = shank_to_structure(rat,day,i)
+                if (i == 21) or (i==22): stru = 'Accel'
+                shank_channels.update({i:[channels,stru]})
+    return shank_channels
+
+def random_channel(stru):
+    chans = channels()
+    
+    chan = []
+    for shank,(channel,s) in chans.items():
+        if s == stru: chan.append(channel)
+            
+    chan = np.random.choice(np.array(chan).ravel())
+    return chan
 
 def pos(save=False):
     #BK : 04/08/2020
@@ -168,6 +207,7 @@ def states():
         states_.update({state:nts.IntervalSet(states[state][:,0],states[state][:,1],time_units = 's')})
     
     return states_
+
 
 def ripples():
     ripples_ = scipy.io.loadmat(f'{bk.load.session}-RippleFiring.mat')['ripples']['allsws'][0][0]
