@@ -101,7 +101,6 @@ def tone_intervals(digital_tone, Fs = 20000, t_merge = 1, t_drop = 1):
     
     return tone_intervals
     
-
 def TTL_edges(TTL,Fs = 20000):
     if isinstance(TTL[0],(np.bool_,bool)):
         TTL = list(map(int,TTL))
@@ -130,7 +129,6 @@ def TTL_to_intervals(TTL,Fs = 20000):
     
     
     return (t_start/Fs,t_end/Fs)
-
 
 def TTL_to_times(TTL,Fs = 20000):
     
@@ -211,9 +209,6 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         b = np.convolve(b,[.5,.5],'same')[1::]
     return b,binned
     
-    
-    
-
 def transitions_times(states,epsilon = 1,verbose = False):
     '''
         states : dict of nts.Interval_Set
@@ -317,7 +312,6 @@ def psth(neurons,stimulus,binSize,win,average = True):
     t = window*binSize
     return t,psth
 
-
 def crosscorrelogram(neurons,binSize,win):
     if isinstance(neurons,nts.time_series.Tsd): 
         neurons = np.array(neurons,'object')
@@ -341,3 +335,18 @@ def crosscorrelogram(neurons,binSize,win):
         t = window*binSize
         
     return t,crosscorr
+
+def toIntervals(t,is_in):
+    
+    '''
+    Author : BK (Inspired Michael Zugaro FMA Toolbox)
+    This function convert logical vector to interval.
+    '''
+    
+    if is_in[-1] == 1: is_in = np.append(is_in,0)
+    d_is_in = np.diff(is_in,prepend=0)
+    start = np.where(d_is_in == 1)[0]
+    end = np.where(d_is_in == -1)[0]-1
+
+    
+    return nts.IntervalSet(start = t[start],end = t[end])
