@@ -3,7 +3,7 @@ import neuroseries as nts
 from tqdm import tqdm
 import os
 import scipy.stats
-
+import bk.load
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
     """
@@ -62,7 +62,7 @@ def freezing_video(video_path,output_file,tf,freezing_intervals):
     if os.path.exists(output_file):
         print(output_file,'already exist, please delete manually')
         return
-    
+    print(video_path)
     tf = nts.Ts(tf,time_units='s')
     freezing_frames = np.where(freezing_intervals.in_interval(tf)>=0)[0]
     fs =  1/scipy.stats.mode(np.diff(tf.as_units('s').index)).mode[0]
@@ -284,9 +284,9 @@ def intervals_exp(force_reload = False, save = False):
             tone = nts.IntervalSet(tone[:,0],tone[:,1],time_units='us')
             return (exp, shock, tone)
         
-    exp = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[1,:])
-    shock = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[2,:])
-    tone = bk.compute.tone_intervals(bk.load.digitalin('digitalin.dat')[3,:])
+    exp = tone_intervals(bk.load.digitalin('digitalin.dat')[1,:])
+    shock = tone_intervals(bk.load.digitalin('digitalin.dat')[2,:])
+    tone = tone_intervals(bk.load.digitalin('digitalin.dat')[3,:])
     
     if save:
         with open('intervals.npy', 'wb') as f:

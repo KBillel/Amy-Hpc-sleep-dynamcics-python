@@ -457,6 +457,7 @@ def DLC_pos(filtered = True,force_reload = False, save = False):
     """
     files = os.listdir()
     if ('positions.h5' in files) and (force_reload == False):
+        print('hey listen')
         data = pd.read_hdf('positions.h5')
         pos = nts.TsdFrame(data)
         return pos
@@ -466,9 +467,9 @@ def DLC_pos(filtered = True,force_reload = False, save = False):
             filename = f
             break
         if not filtered and not f.endswith('filtered.h5') and f.endswith('.h5'):
+            print(f)
             filename = f
             break
-
     data = pd.read_hdf(filename)
     data = data[data.keys()[0][0]]
 
