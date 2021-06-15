@@ -198,7 +198,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         for i,neuron in enumerate(neurons):
             binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
     elif fast:
-        binned = np.zeros((len(neurons),len(bins)),dtype = np.bool)
+        binned = np.zeros((len(neurons),len(bins)+1),dtype = np.bool)
         b = bins
         for i,neuron in enumerate(neurons):
             spike_bin = np.unique((neuron.times(units = 's')/binSize).astype(np.int))
@@ -317,14 +317,14 @@ def crosscorrelogram(neurons,binSize,win):
         neurons = np.array(neurons,'object')
     winLen = int((win[1] - win[0])/binSize)
     window = np.arange(winLen,dtype = int)-int(winLen/2)
-    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'float16')
+    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'int16')
     last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
     t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
 
     for i,n in tqdm(enumerate(neurons),total = len(neurons)):
         stimulus = n.as_units('s').index
-        stim_bin = (stimulus/binSize).astype('int')
-        psth = np.empty((stimulus.size,len(neurons),winLen),dtype = 'float16')
+        stim_bin = (stimulus/binSize).astype('int64')
+        psth = np.empty((stimulus.size,len(neurons),winLen),dtype = 'int16')
 
         for j,t in enumerate(stim_bin):
             psth[j] = binned[:,t+window]

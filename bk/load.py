@@ -244,7 +244,8 @@ def laps():
 
     laps.update({'danger':danger,'safe':safe})
     return laps
-
+def spikes():
+    return loadSpikeData(path)
 def loadSpikeData(path, index=None, fs = 20000):  
     ### Adapted from Viejo github https://github.com/PeyracheLab/StarterPack/blob/master/python/wrappers.py
     ### Modified by BK 06/08/20
