@@ -312,20 +312,19 @@ def psth(neurons,stimulus,binSize,win,average = True):
     t = window*binSize
     return t,psth
 
-def crosscorrelogram(neurons,binSize,win):
+def crosscorrelogram(neurons,binSize,win,fast = False):
     if isinstance(neurons,nts.time_series.Tsd): 
         neurons = np.array(neurons,'object')
     winLen = int((win[1] - win[0])/binSize)
     window = np.arange(winLen,dtype = int)-int(winLen/2)
-    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'int16')
+    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = np.int32)
     last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
-    t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
+    t,binned = bk.compute.binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1],fast = fast)
 
     for i,n in tqdm(enumerate(neurons),total = len(neurons)):
         stimulus = n.as_units('s').index
         stim_bin = (stimulus/binSize).astype('int64')
         psth = np.empty((stimulus.size,len(neurons),winLen),dtype = 'int16')
-
         for j,t in enumerate(stim_bin):
             psth[j] = binned[:,t+window]
 #             psth[j][:,window == 0] -= 1
