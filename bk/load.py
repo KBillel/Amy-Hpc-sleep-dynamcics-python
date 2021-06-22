@@ -11,6 +11,7 @@ from IPython.display import clear_output
 import xml.etree.ElementTree as ET
 import os
 import bk.compute
+import re 
 
 def sessions():
     return pd.read_csv('Z:/All-Rats/Billel/session_indexing.csv',sep = ';')
@@ -84,7 +85,7 @@ def xml():
                 pass
     return xmlInfo
 
-def batch(func,arg,verbose = False,linux = False):
+def batch(func,args,verbose = False,linux = False):
     
     #Author : BK
     #Date : 08/20
@@ -98,6 +99,7 @@ def batch(func,arg,verbose = False,linux = False):
     t = time.time()
     
     if linux: 
+        current_session_linux()
         os.chdir(base)
         session_index = pd.read_csv('relative_session_indexing.csv')
     else: 
@@ -114,7 +116,7 @@ def batch(func,arg,verbose = False,linux = False):
         print('Loading Data from ' + session)
         
         try:
-            output = func(os.path.join(path),arg)
+            output = func(os.path.join(path),args)
             output_dict.update({session:output})
             if not verbose: clear_output()
         except:
@@ -220,6 +222,21 @@ def ripples():
         ripples.update({c:nts.Ts(ripples_[:,i],time_units='s')})
     return ripples
 
+def ripple_channel():
+    with open(f'{session}.rip.evt','r') as f:
+        rip = f.readline()
+    chan = re.findall('\d+',rip)[-1]
+    
+    return chan
+    
+        
+    
+    return chan
+def events(filename):
+    if not filename.endswith('.evt'): filename += '.evt'
+        
+    print('Not done yet')
+    return 0
 
 def run_intervals():
     trackruntimes = scipy.io.loadmat(session + '-TrackRunTimes.mat')['trackruntimes']

@@ -184,6 +184,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         If fast, will assume that two spikes cannot happen in the same bin. 
         
         If centered will return the center of each bin. Otherwise will return edges
+        I think that fast is not compatible with centered because already centering.
     '''
     if binSize < 0.025 and not fast: print(f"You are using {binSize} ms bins with the function fast off. Consider using \"Fast = True\" in order to speed up the computations")
     if stop is None:
@@ -312,19 +313,20 @@ def psth(neurons,stimulus,binSize,win,average = True):
     t = window*binSize
     return t,psth
 
-def crosscorrelogram(neurons,binSize,win,fast = False):
+def crosscorrelogram(neurons,binSize,win):
     if isinstance(neurons,nts.time_series.Tsd): 
         neurons = np.array(neurons,'object')
     winLen = int((win[1] - win[0])/binSize)
     window = np.arange(winLen,dtype = int)-int(winLen/2)
-    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = np.int32)
+    crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'int16')
     last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
-    t,binned = bk.compute.binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1],fast = fast)
+    t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
 
     for i,n in tqdm(enumerate(neurons),total = len(neurons)):
         stimulus = n.as_units('s').index
         stim_bin = (stimulus/binSize).astype('int64')
         psth = np.empty((stimulus.size,len(neurons),winLen),dtype = 'int16')
+
         for j,t in enumerate(stim_bin):
             psth[j] = binned[:,t+window]
 #             psth[j][:,window == 0] -= 1
