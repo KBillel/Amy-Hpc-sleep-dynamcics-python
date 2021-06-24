@@ -35,3 +35,14 @@ def intervals(intervals,col = 'orange',alpha = 0.5,time_units = 's',ymin = 0,yma
     
     for interval in intervals.as_units(time_units).values:
         plt.axvspan(interval[0],interval[1], facecolor=col, alpha=alpha,ymin = ymin, ymax = ymax)
+
+def spectrogram(t,f,spec,log = False,ax = None,vmin = None,vmax = None):
+    if ax == None: 
+        fig,ax = plt.subplots(1,1)    
+
+    if log: spectrogram = np.log(spectrogram)
+    ax.pcolormesh(t,f,spec)
+
+
+    
+    
