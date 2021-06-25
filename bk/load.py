@@ -401,10 +401,15 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(channel,start, stop, frequency=1250.0, precision='int16',dat = False,verbose = False):
-    
+def lfp(channel,start = None, stop = None, frequency=1250.0, precision='int16',dat = False,verbose = False):
+        
     p = session+".lfp"
     if dat: p = session+'.dat'
+    
+    if start is None: start = 0
+    if stop is None: stop = 1e8
+
+    
     
     if verbose:
         print('Load LFP from ' + p)
