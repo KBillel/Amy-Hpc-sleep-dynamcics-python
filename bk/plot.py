@@ -40,7 +40,7 @@ def spectrogram(t,f,spec,log = False,ax = None,vmin = None,vmax = None):
     if ax == None: 
         fig,ax = plt.subplots(1,1)    
 
-    if log: spectrogram = np.log(spectrogram)
+    if log: spec = np.log(spec)
     ax.pcolormesh(t,f,spec)
 
 
