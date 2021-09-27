@@ -920,7 +920,7 @@ def wvSpect(signal,freqs,tfrout=False,runSpectrogram=True,runPhases=False,s=1,w=
         if runPhases:
                 output += (np.angle(tfr).squeeze(),)
 
-        return output
+        return output[0]
 
 def runHilbert(signal,axis=-1):
 

@@ -10,6 +10,13 @@ def passband(lfp,low,high,fs = 1250,order = 4):
     return nts.Tsd(np.array(lfp.index),filtered)
 
 def hilbert(lfp,deg = False):
+    """
+    lfp : lfp as an nts.Tsd
+    
+    return 
+    power : nts.Tsd
+    phase : nts.Tsd
+    """
     xa = scipy.signal.hilbert(lfp)
     power = nts.Tsd(np.array(lfp.index),np.abs(xa)**2)
     phase = nts.Tsd(np.array(lfp.index),np.angle(xa,deg = deg))

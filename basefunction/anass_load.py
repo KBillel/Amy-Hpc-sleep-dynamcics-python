@@ -10,7 +10,6 @@ import matplotlib.gridspec as gridspec
 import math
 from scipy.ndimage.measurements import center_of_mass
 import pickle
-import neuroseries as nts
 
 from pylab import *
 

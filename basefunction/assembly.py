@@ -8,6 +8,8 @@
 
 from sklearn.decomposition import PCA
 from scipy import stats
+from tqdm import tqdm
+
 import numpy as np
 from numpy import matlib as mb
 np.matlib = mb
@@ -83,9 +85,8 @@ def binshuffling(zactmat,significance):
 def circshuffling(zactmat,significance):
     
         np.random.seed()
-
         lambdamax_ = np.zeros(significance.nshu)
-        for shui in range(significance.nshu):
+        for shui in tqdm(range(significance.nshu)):
                 zactmat_ = np.copy(zactmat)
                 for (neuroni,activity) in enumerate(zactmat_):
                         cut = int(np.random.randint(significance.nbins*2))

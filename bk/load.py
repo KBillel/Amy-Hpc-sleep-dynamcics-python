@@ -154,7 +154,8 @@ def shank_to_structure(rat,day,shank):
         if np.any(filtered_array):
             return stru
         
-def channels():   
+def channels():
+
     tree = ET.parse(session+'.xml')
     root = tree.getroot()
     shank_channels = {}
@@ -171,6 +172,42 @@ def channels():
                 if (i == 21) or (i==22): stru = 'Accel'
                 shank_channels.update({i:[channels,stru]})
     return shank_channels
+
+def best_channel(shank):
+    rat_shank_channels = os.path.join(base,'All-Rats/Rat_Shank_Channels.csv')
+    rat_shank_channels = pd.read_csv(rat_shank_channels)
+
+    chan = rat_shank_channels[(rat_shank_channels['rat'] == rat)
+    & (rat_shank_channels['shank'] == shank)]
+    if not np.isnan(shank): 
+        return chan['channel'].values[0]
+    else:
+        return np.nan
+
+def bla_shanks():
+    bla_shanks = os.path.join(base,'All-Rats/BLA_Shanks.csv')
+    bla_shanks = pd.read_csv(bla_shanks)
+
+    left_chan = bla_shanks[(bla_shanks['Rat'] == rat) & 
+                          (bla_shanks['Day'] == day)]['Left'].values[0]
+    right_chan = bla_shanks[(bla_shanks['Rat'] == rat) & 
+                          (bla_shanks['Day'] == day)]['Right'].values[0]
+    try:
+        left_chan = int(left_chan)
+    except:
+            pass
+
+    try: 
+        right_chan = int(right_chan)
+    except:
+        pass
+    
+    return {'left':left_chan,'right':right_chan}
+
+
+def bla_channels():
+    return {'left':best_channel(bla_shanks()['left']),
+            'right':best_channel(bla_shanks()['right'])}
 
 def random_channel(stru):
     chans = channels()
@@ -194,7 +231,20 @@ def pos(save=False):
 #         with open('position'+'.csv', 'w') as csvfile:
 #             filewriter=csv.writer(csvfile)
     return nts.TsdFrame(t = pos_clean[:,0],d = pos_clean[:,1:],columns = ['x','y'],time_units = 's')
+def state_vector():
+    names = {'wake':1,
+            'drowsy':2,
+            'nrem':3,
+            'intermediate':4,
+            'rem':5}
+    
 
+    states = scipy.io.loadmat(bk.load.session + '-states.mat')['states'][0]
+    states = np.array(states,np.object)
+
+    for name,number in names.items():
+        states[np.where(states == number)] = name
+    return states
 def states():
     #BK : 17/09/2020
     #Return a dict with variable from States.
@@ -227,6 +277,9 @@ def ripple_channel():
         rip = f.readline()
     chan = re.findall('\d+',rip)[-1]
     
+    try: chan = int(chan)
+    except: pass
+
     return chan
     
         
@@ -401,8 +454,21 @@ def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision='int16'
             timestep = np.arange(0, len(data))/frequency
         return nts.TsdFrame(timestep, data, time_units = 's')
 
-def lfp(channel,start = None, stop = None, frequency=1250.0, precision='int16',dat = False,verbose = False):
+def recording_length(fs = 1250):
+
+    data = np.memmap(session+'.lfp',np.uint16)
+    data = data.reshape(-1,n_channels)
+
+    rec_len = len(data)/fs
+    del data
+
+    return rec_len
+
+def lfp(channel,start = None, stop = None, frequency=1250.0, precision='int16',dat = False,verbose = False,memmap = False):
         
+    if (np.isnan(channel)) or (channel is None):
+        return None
+    
     p = session+".lfp"
     if dat: p = session+'.dat'
     
@@ -421,6 +487,8 @@ def lfp(channel,start = None, stop = None, frequency=1250.0, precision='int16',d
     #In order not to read after the file
     if stop_index > os.path.getsize(p): stop_index = os.path.getsize(p)
     fp = np.memmap(p, np.int16, 'r', start_index, shape = (stop_index - start_index)//bytes_size)
+    if memmap == True:
+        return fp.reshape(-1,n_channels)[:,channel]
     data = np.array(fp).reshape(len(fp)//n_channels, n_channels)
 
     if type(channel) is not list:
