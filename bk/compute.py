@@ -116,7 +116,7 @@ def TTL_edges(TTL,Fs = 20000):
     edges = nts.IntervalSet(t_start/Fs,t_end/Fs,time_units = 's')
     return edges
     
-def TTL_to_intervals(TTL,Fs = 20000):
+def TTL_to_intervals(TTL,Fs = 20000,as_nts = False):
     if isinstance(TTL[0],(np.bool_,bool)):
         TTL = list(map(int,TTL))
     
@@ -127,7 +127,8 @@ def TTL_to_intervals(TTL,Fs = 20000):
     t_end = np.where(diff_TTL == -1)[0]
     t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
     
-    
+    if as_nts:
+        return nts.IntervalSet(t_start/Fs,t_end/Fs,time_units = 's')
     return (t_start/Fs,t_end/Fs)
 
 def TTL_to_times(TTL,Fs = 20000):
