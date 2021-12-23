@@ -3,7 +3,8 @@ import neuroseries as nts
 from tqdm import tqdm
 import os
 import scipy.stats
-import bk.load
+import bk.loadold
+import pandas as pd
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
     """
@@ -286,9 +287,9 @@ def intervals_exp(force_reload = False, save = False):
             tone = nts.IntervalSet(tone[:,0],tone[:,1],time_units='us')
             return (exp, shock, tone)
         
-    exp = tone_intervals(bk.load.digitalin('digitalin.dat')[1,:])
-    shock = tone_intervals(bk.load.digitalin('digitalin.dat')[2,:])
-    tone = tone_intervals(bk.load.digitalin('digitalin.dat')[3,:])
+    exp = tone_intervals(bk.loadold.digitalin('digitalin.dat')[1,:])
+    shock = tone_intervals(bk.loadold.digitalin('digitalin.dat')[2,:])
+    tone = tone_intervals(bk.loadold.digitalin('digitalin.dat')[3,:])
     
     if save:
         with open('intervals.npy', 'wb') as f:
@@ -352,3 +353,83 @@ def toIntervals(t,is_in):
 
     
     return nts.IntervalSet(start = t[start],end = t[end])
+
+def transition(states, template, epsilon=0):
+    """
+    author: BK
+    states : dict of nts.Interval_set
+    template : list of state.
+    epsilon : int, will drop any 
+     in which there is an epoch shorter than epsilon 's'
+    This function will find transition that match the template 
+    """
+    if epsilon is list:
+        print("eplist")
+    long = pd.DataFrame()
+    for s, i in states.items():
+        i["state"] = s
+        long = pd.concat((i, long))
+        del i["state"]
+    order = np.argsort(long.start)
+    long = long.iloc[order]
+
+    transition_times = []
+    transition_intervals = []
+    for i, s in enumerate(long.state):
+        tmp = list(long.state[i: i + len(template)])
+        if tmp == template:
+            tmp_transition = long.iloc[i: i + len(template)]
+            #             print(d.iloc[i:i+len(template)])
+            length = (tmp_transition.end - tmp_transition.start) / 1_000_000
+            if np.any(length.values < epsilon):
+                continue
+            tmp_pre = np.array(tmp_transition.end[:-1])
+            tmp_post = np.array(tmp_transition.start[1:])
+            tmp_times = np.mean([tmp_pre, tmp_post], 0)
+
+            transition_intervals.append(
+                [tmp_transition.start.iloc[0], tmp_transition.end.iloc[-1]]
+            )
+            transition_times.append(tmp_times)
+
+    transition_times = np.array(transition_times)
+    transition_intervals = np.array(transition_intervals)
+    transition_intervals = nts.IntervalSet(
+        start=transition_intervals[:, 0],
+        end=transition_intervals[:, 1],
+        force_no_fix=True,
+    )
+    return transition_intervals, transition_times
+
+
+def compute_transition_activity(neurons, intervals, timing, bin_epochs, n_event):
+
+    transition_activity = []
+    for event, t in zip(intervals.iloc, timing):  # For each transitions
+        if n_event == 2:
+            epochs = np.array(
+                [(event.start, t[0]), (t[0], event.end)], dtype=np.int64)
+        if n_event == 3:
+            epochs = np.array(
+                [[event.start, t[0]], [t[0], t[1]], [t[1], event.end]])
+        epochs = nts.IntervalSet(start=epochs[:, 0], end=epochs[:, 1])
+        # Creates intervals for each state of the transitions events.
+
+        #         binned = np.array(shape = (252,np.sum(bin_epochs)))
+        #         binned = np.empty(shape = (252,np.sum(bin_epochs),len(intervals)+1))
+        binned = np.empty(shape=(len(neurons), 1))
+        for i, epoch in enumerate(epochs.as_units("s").iloc):
+            start = epoch.start
+            end = epoch.end
+            nbins = bin_epochs[i]
+            _, b = bk.compute.binSpikes(
+                neurons, start=start, stop=end, nbins=nbins)
+            b = b / ((end - start) / nbins)  # Converting to firing rates
+            binned = np.hstack((binned, b))
+        binned = binned[:, 1:]
+        transition_activity.append(binned)
+
+    transition_activity = np.array(transition_activity)
+    transition_activity = np.moveaxis(transition_activity, 0, 2)
+
+    return transition_activity

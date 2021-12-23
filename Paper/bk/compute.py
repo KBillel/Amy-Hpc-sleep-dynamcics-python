@@ -3,7 +3,7 @@ import neuroseries as nts
 from tqdm import tqdm
 import os
 import scipy.stats
-import bk.load
+import bk.loadold
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
     """
@@ -285,9 +285,9 @@ def intervals_exp(force_reload = False, save = False):
             tone = nts.IntervalSet(tone[:,0],tone[:,1],time_units='us')
             return (exp, shock, tone)
         
-    exp = tone_intervals(bk.load.digitalin('digitalin.dat')[1,:])
-    shock = tone_intervals(bk.load.digitalin('digitalin.dat')[2,:])
-    tone = tone_intervals(bk.load.digitalin('digitalin.dat')[3,:])
+    exp = tone_intervals(bk.loadold.digitalin('digitalin.dat')[1,:])
+    shock = tone_intervals(bk.loadold.digitalin('digitalin.dat')[2,:])
+    tone = tone_intervals(bk.loadold.digitalin('digitalin.dat')[3,:])
     
     if save:
         with open('intervals.npy', 'wb') as f:

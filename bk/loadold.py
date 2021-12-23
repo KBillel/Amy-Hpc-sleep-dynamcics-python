@@ -92,7 +92,7 @@ def xml():
     return xmlInfo
 
 
-def batch(func, local_base='/mnt/electrophy/Gabrielle/GG-Dataset', *args, verbose=False, linux=False):
+def batch(func, *args, verbose=False, linux=False):
 
     # Author : BK
     # Date : 08/20
@@ -105,7 +105,8 @@ def batch(func, local_base='/mnt/electrophy/Gabrielle/GG-Dataset', *args, verbos
     t = time.time()
 
     if linux:
-        os.chdir(local_base)
+        current_session_linux()
+        os.chdir(base)
         session_index = pd.read_csv("relative_session_indexing.csv")
     else:
         session_index = pd.read_csv(
@@ -122,8 +123,7 @@ def batch(func, local_base='/mnt/electrophy/Gabrielle/GG-Dataset', *args, verbos
         print("Loading Data from " + session)
 
         try:
-            output = func(base_folder=local_base,
-                          local_path=os.path.join(path), *args)
+            output = func(os.path.join(path), *args)
             output_dict.update({session: output})
             if not verbose:
                 clear_output()
@@ -586,20 +586,14 @@ def lfp(
     if memmap == True:
         print("/!\ memmap is not compatible with volt_step /!\ ")
         return fp.reshape(-1, n_channels)[:, channel]
-    data = np.array(fp,dtype = np.float16).reshape(len(fp) // n_channels, n_channels)*volt_step
+    data = np.array(fp).reshape(len(fp) // n_channels, n_channels)*volt_step
 
     if type(channel) is not list:
         timestep = np.arange(0, len(data)) / fs + start
-        to_return = nts.Tsd(timestep, data[:, channel], time_units="s")
-
-        del timestep, data
-        return to_return
+        return nts.Tsd(timestep, data[:, channel], time_units="s")
     elif type(channel) is list:
         timestep = np.arange(0, len(data)) / fs + start
-        to_return = nts.TsdFrame(timestep, data[:, channel], time_units="s")
-
-        del timestep, data
-        return 
+        return nts.TsdFrame(timestep, data[:, channel], time_units="s")
 
 
 def lfp_in_intervals(channel, intervals):

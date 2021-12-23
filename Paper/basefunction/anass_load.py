@@ -14,7 +14,7 @@ import pickle
 from pylab import *
 
 
-import bk.load as bk
+import bk.loadold as bk
 
 def namestr(obj, namespace=globals()):
     return [name for name in namespace if namespace[name] is obj]
