@@ -126,13 +126,13 @@ def TTL_to_intervals(TTL,Fs = 20000,as_nts = False):
     
     t_start = np.where(diff_TTL == 1)[0]
     t_end = np.where(diff_TTL == -1)[0]
-    t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
+    # t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
     
     if as_nts:
         return nts.IntervalSet(t_start/Fs,t_end/Fs,time_units = 's')
     return (t_start/Fs,t_end/Fs)
 
-def TTL_to_times(TTL,Fs = 20000):
+def TTL_to_times(TTL,Fs = 20000,start = False):
     
     if isinstance(TTL[0],(np.bool_,bool)):
         TTL = list(map(int,TTL))
@@ -141,10 +141,22 @@ def TTL_to_times(TTL,Fs = 20000):
     
     t_start = np.where(diff_TTL == 1)[0]
     t_end = np.where(diff_TTL == -1)[0]
+    if start:
+        return t_start/Fs
     t_TTL = np.array([np.mean(interval) for interval in zip(t_start,t_end)])
     
     return t_TTL/Fs
 
+def n_TTL(TTL):
+    #Return the number TTL and the index where the last one starts
+    
+    TTL = list(map(int,TTL))
+    diff_TTL = np.diff(TTL)
+    
+    t_start = np.where(diff_TTL == 1)
+
+    return(len(t_start[0]),t_start[0][-1])
+    
 def old_speed(pos,value_gaussian_filter,pixel = 0.43):
     x_speed = np.diff(pos.as_units('s')['x'])/np.diff(pos.as_units('s').index)
     y_speed = np.diff(pos.as_units('s')['y'])/np.diff(pos.as_units('s').index)
@@ -433,3 +445,40 @@ def compute_transition_activity(neurons, intervals, timing, bin_epochs, n_event)
     transition_activity = np.moveaxis(transition_activity, 0, 2)
 
     return transition_activity
+
+
+
+def mean_resultant_length(angles,weights = None):
+    angles = np.exp(1j*angles)
+    return np.abs(np.average(angles,weights = weights))
+
+def concentration(angles):
+    '''
+    Compute the kappa parameter Uses the approximation described in "Statistical Analysis of Circular Data" (Fisher, p. 88).
+    Translated from MATLAB fmatoolbox.sourceforge.net/Contents/FMAToolbox/General/Concentration.html
+    angles : radian
+
+    Copyright (C) 2004-2011 by Michaël Zugaro
+    Copyright (C) 2021 by Billel KHOUADER
+
+    '''
+    n = len(angles)
+    angles = np.exp(1j * angles)  # Complex form of the angles
+    r = abs(np.mean(angles))
+
+    if r < 0.53:
+        k = 2 * r + r**3 + 5*r**(5/6)
+    elif r < 0.85:
+        k = -0.4 + 1.39 * r + 0.43 / (1-r)
+    else:
+        k = 1/(r**3 - 4 * r**2 + 3*r)
+
+    # Correction for very small samples
+
+    if n <= 15:
+        if k < 2:
+            k = np.max([(k-2)/(n*k), 0])
+        else:
+            k = (n-1)**3 * k / (n**3+n)
+
+    return k

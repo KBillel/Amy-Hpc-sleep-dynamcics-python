@@ -1,3 +1,5 @@
+from cmath import isfinite
+from threading import local
 import numpy as np
 import pandas as pd
 import neuroseries as nts
@@ -17,7 +19,7 @@ global session, path, rat, day, n_channels
 
 
 def sessions():
-    return pd.read_csv("Z:/All-Rats/Billel/session_indexing.csv", sep=";")
+    return pd.read_csv("/home/billel/Data/GG-Dataset/relative_session_indexing.csv", sep=",")
 
 
 def current_session(path_local="Z:\Rat08\Rat08-20130713"):
@@ -49,7 +51,7 @@ def current_session(path_local="Z:\Rat08\Rat08-20130713"):
 
 
 def current_session_linux(
-    base_folder="/home/billel/Data/GG-Dataset/", local_path="Rat08/Rat08-20130713"
+    base_folder="/home/billel/Data/GG-Dataset/", local_path="Rat08/Rat08-20130713",byrat = None,byday = None
 ):
     # Author : BK 08/20
     # Input Path to the session to load
@@ -63,9 +65,16 @@ def current_session_linux(
     os.chdir(base)
     session_index = pd.read_csv("relative_session_indexing.csv")
 
-    session = local_path.split("/")[1]
-    rat = session_index["Rat"][session_index["Path"] == local_path].values[0]
-    day = session_index["Day"][session_index["Path"] == local_path].values[0]
+    if byrat and byday:
+        rat = byrat
+        day = byday
+        local_path = str(session_index[(session_index.Rat == rat) & (session_index.Day == day)].Path.values[0])
+    else:
+        
+        rat = session_index["Rat"][session_index["Path"] == local_path].values[0]
+        day = session_index["Day"][session_index["Path"] == local_path].values[0]
+    
+    session = local_path.split("/")[-1]
     path = os.path.join(base, local_path)
     os.chdir(path)
 
@@ -92,7 +101,7 @@ def xml():
     return xmlInfo
 
 
-def batch(func, local_base='/mnt/electrophy/Gabrielle/GG-Dataset', *args, verbose=False, linux=False):
+def batch(func, *args, local_base='/home/billel/Data/GG-Dataset/', verbose=False, **kwargs):
 
     # Author : BK
     # Date : 08/20
@@ -101,29 +110,21 @@ def batch(func, local_base='/mnt/electrophy/Gabrielle/GG-Dataset', *args, verbos
     # Output : Output of the function
 
     # This function batch over all rat / all session and return output of the functions.
-    print(args)
     t = time.time()
 
-    if linux:
-        os.chdir(local_base)
-        session_index = pd.read_csv("relative_session_indexing.csv")
-    else:
-        session_index = pd.read_csv(
-            "Z:/All-Rats/Billel/session_indexing.csv", sep=";")
+    os.chdir(local_base)
+    session_index = pd.read_csv("relative_session_indexing.csv")
 
     error = []
     output_dict = {}
     for path in tqdm(session_index["Path"]):
 
-        if linux:
-            session = path.split("/")[1]
-        else:
-            session = path.split("\\")[2]
+        session = path.split("/")[1]
         print("Loading Data from " + session)
 
         try:
-            output = func(base_folder=local_base,
-                          local_path=os.path.join(path), *args)
+            output = func(local_base,
+                          os.path.join(path), *args, **kwargs)
             output_dict.update({session: output})
             if not verbose:
                 clear_output()
@@ -212,15 +213,10 @@ def bla_shanks():
     right_chan = bla_shanks[(bla_shanks["Rat"] == rat) & (bla_shanks["Day"] == day)][
         "Right"
     ].values[0]
-    try:
-        left_chan = int(left_chan)
-    except:
-        pass
+    
+    if isfinite(left_chan): int(left_chan)
+    if isfinite(right_chan): int(right_chan)
 
-    try:
-        right_chan = int(right_chan)
-    except:
-        pass
 
     return {"left": left_chan, "right": right_chan}
 
@@ -230,6 +226,32 @@ def bla_channels():
         "left": best_channel(bla_shanks()["left"]),
         "right": best_channel(bla_shanks()["right"]),
     }
+
+def shank_neighbours(shank):
+    df = pd.read_csv(os.path.join(base, 'All-Rats/Shanks_Neighbours.csv'))
+    m_neighbour = df[(df['Rat'] == rat) & (df['Shank'] == shank)]['medial'].values[0]
+    l_neighbour = df[(df['Rat'] == rat) & (df['Shank'] == shank)]['lateral'].values[0]
+
+    if isfinite(m_neighbour) : m_neighbour = int(m_neighbour)
+    if isfinite(l_neighbour) : l_neighbour = int(l_neighbour)
+
+    neighbours = {'medial':m_neighbour, 
+                  'lateral':l_neighbour}
+
+    return neighbours
+
+def bla_shank_neighbour(shank, chan=False):
+    df = pd.read_csv(os.path.join(base, 'All-Rats/BLA_Shanks_Neighbours.csv'))
+
+    neighbour = df[(df['Rat'] == rat) & (
+        df['Shank'] == shank)]['Neighbour'].values[0]
+    if not neighbour:
+        return np.nan
+
+    if chan:
+        return bk.load.best_channel(neighbour)
+
+    return neighbour
 
 
 def random_channel(stru):
@@ -286,11 +308,28 @@ def states():
             {
                 state: nts.IntervalSet(
                     states[state][:, 0], states[state][:, 1], time_units="s"
-                )
+                ).drop_short_intervals(1)
             }
         )
 
+    sleep = bk.load.sleep()
+    wake_homecage = states_['wake'].intersect(sleep).drop_short_intervals(1)
+    states_.update({'wake_homecage': wake_homecage})
+
     return states_
+
+
+def sleep():
+    runs = scipy.io.loadmat("runintervals.mat")["runintervals"]
+    pre_sleep = nts.IntervalSet(
+        start=runs[0, 1], end=runs[1, 0], time_units="s")
+    post_sleep = nts.IntervalSet(
+        start=runs[1, 1], end=runs[2, 0], time_units="s")
+
+    intervals = pd.concat((pre_sleep, post_sleep))
+    intervals.index = ['Pre', 'Post']
+
+    return intervals
 
 
 def ripples():
@@ -338,16 +377,6 @@ def run_intervals():
     )
 
     return trackruntimes
-
-
-def sleep():
-    runs = scipy.io.loadmat("runintervals.mat")["runintervals"]
-    pre_sleep = nts.IntervalSet(
-        start=runs[0, 1], end=runs[1, 0], time_units="s")
-    post_sleep = nts.IntervalSet(
-        start=runs[1, 1], end=runs[2, 0], time_units="s")
-
-    return pre_sleep, post_sleep
 
 
 def laps():
@@ -586,20 +615,15 @@ def lfp(
     if memmap == True:
         print("/!\ memmap is not compatible with volt_step /!\ ")
         return fp.reshape(-1, n_channels)[:, channel]
-    data = np.array(fp,dtype = np.float16).reshape(len(fp) // n_channels, n_channels)*volt_step
+    data = np.array(fp, dtype=np.float16).reshape(
+        len(fp) // n_channels, n_channels)*volt_step
 
     if type(channel) is not list:
         timestep = np.arange(0, len(data)) / fs + start
-        to_return = nts.Tsd(timestep, data[:, channel], time_units="s")
-
-        del timestep, data
-        return to_return
+        return nts.Tsd(timestep, data[:, channel], time_units="s")
     elif type(channel) is list:
         timestep = np.arange(0, len(data)) / fs + start
-        to_return = nts.TsdFrame(timestep, data[:, channel], time_units="s")
-
-        del timestep, data
-        return 
+        return nts.TsdFrame(timestep, data[:, channel], time_units="s")
 
 
 def lfp_in_intervals(channel, intervals):
@@ -640,13 +664,15 @@ def digitalin_old(local_path=None, nchannels=16, Fs=20000):
     return data
 
 
-def digitalin(chan, Fs=20000):
-    import pandas as pd
 
-    local_path = session+'-digitalin.dat'
+def digitalin(local_path = None,chan = 0, Fs=20000,as_Tsd = True):
+
+    if local_path is None:
+        local_path = session+'-digitalin.dat'
 
     digital_word = np.fromfile(local_path, "uint16")
     data = (digital_word & 2 ** chan) > 0
+    if as_Tsd: data = nts.Tsd(np.arange(0,len(data)/Fs,1/Fs),data,time_units='s')
 
     return data
 
@@ -716,3 +742,12 @@ def DLC_pos(filtered=True, force_reload=False, save=False):
 
     pos = nts.TsdFrame(data)
     return pos
+
+def video_path(local_path):
+    ls = os.listdir(local_path)
+    video = [v for v in ls if v.endswith('mp4')][0]
+    return os.path.join(local_path,video)
+
+def digitalin_path(local_path):
+    digitalin = os.path.join(local_path,'digitalin.dat')
+    return digitalin

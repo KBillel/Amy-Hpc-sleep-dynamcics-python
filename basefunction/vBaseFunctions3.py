@@ -1,8 +1,8 @@
 # from peakdetect import detect_peaks
 import numpy as np
 import os as os
-import time as time 
-import sys as sys 
+import time as time
+import sys as sys
 import pandas as pd
 from importlib import reload as reload
 import scipy.signal as sig
@@ -14,52 +14,57 @@ import scipy.ndimage as ndimage
 sr = 1250.
 int16 = np.int16
 
+
 def LoadUnits(b, par=None):
-        '''Load "units" information (mostly from des-file).
+    '''Load "units" information (mostly from des-file).
 
-        INPUT:
-        - [b]:       <str> containing "block base"
+    INPUT:
+    - [b]:       <str> containing "block base"
 
-        OUTPUT:
-        - [trodes]:  <DataFrame>'''
+    OUTPUT:
+    - [trodes]:  <DataFrame>'''
 
-        ## If not provided, load the par-file information
-        if par is None:
-                par = LoadPar(b)
+    # If not provided, load the par-file information
+    if par is None:
+        par = LoadPar(b)
 
-        ## For each tetrode, read in its "per tetode" des-file
-        trode_index = range(1, len(par['trode_ch'])+1)
-        units = [pd.read_csv(b+'.des.'+str(t), header=None, names=['des']) for t in trode_index]
-        units = pd.concat(units, keys=trode_index, names=['trode','trode_unit']).reset_index()
-        # -as a check, also read in the "overall" des-file
-        all_trodes = pd.read_csv(b+'.des', header=None, names=['des'])
-        if ~np.all(all_trodes.des == units.des):
-                print('tetrode des files do not match combined des for\n'+b)
+    # For each tetrode, read in its "per tetode" des-file
+    trode_index = range(1, len(par['trode_ch'])+1)
+    units = [pd.read_csv(b+'.des.'+str(t), header=None, names=['des'])
+             for t in trode_index]
+    units = pd.concat(units, keys=trode_index, names=[
+                      'trode', 'trode_unit']).reset_index()
+    # -as a check, also read in the "overall" des-file
+    all_trodes = pd.read_csv(b+'.des', header=None, names=['des'])
+    if ~np.all(all_trodes.des == units.des):
+        print('tetrode des files do not match combined des for\n'+b)
 
-        ## Llet the "index per tetrode" and the index of this <DataFrame> start from 2(!) instead of 0
-        units['trode_unit'] += 2
-        units.index += 2
+    # Llet the "index per tetrode" and the index of this <DataFrame> start from 2(!) instead of 0
+    units['trode_unit'] += 2
+    units.index += 2
 
-        ## Add "unit" as column, and set name of column-index to "unit" (NOTE: not sure why this is needed!?)
-        #units['unit'] = units.index
-        #units.index.set_names('unit', inplace=True)
+    # Add "unit" as column, and set name of column-index to "unit" (NOTE: not sure why this is needed!?)
+    #units['unit'] = units.index
+    #units.index.set_names('unit', inplace=True)
 
-        ## Return the "unit"-information as <DataFrame>
-        return units
+    # Return the "unit"-information as <DataFrame>
+    return units
+
 
 def LoadSpikeTimes(b, trode=None, MinCluId=2, res2eeg=(1250./20000)):
 
-        t = '' if trode is None else '.'+str(int(trode))
+    t = '' if trode is None else '.'+str(int(trode))
 
-        res = pd.read_csv(b+'.res'+t, header=None, squeeze=True).values
-        clu = pd.read_csv(b+'.clu'+t, squeeze=True).values
-        if MinCluId is not None:
-                mask = clu >= MinCluId
-                clu = clu[mask]
-                res = res[mask]
-        res = np.round(res*res2eeg).astype(int)
+    res = pd.read_csv(b+'.res'+t, header=None, squeeze=True).values
+    clu = pd.read_csv(b+'.clu'+t, squeeze=True).values
+    if MinCluId is not None:
+        mask = clu >= MinCluId
+        clu = clu[mask]
+        res = res[mask]
+    res = np.round(res*res2eeg).astype(int)
 
-        return res,clu
+    return res, clu
+
 
 def LoadStages(b, par=None):
     '''Load "stages" information (mostly from desen- and resofs-file).
@@ -70,252 +75,270 @@ def LoadStages(b, par=None):
     OUTPUT:
     - [stages]:  <DataFrame>'''
 
-    ## If not provided, load the par-file information
+    # If not provided, load the par-file information
     if par is None:
         par = LoadPar(b)
-    
-    ## Read desen- and resofs-file and store as <DataFrame> using "pandas"-package
+
+    # Read desen- and resofs-file and store as <DataFrame> using "pandas"-package
     stages = pd.read_csv(b+'.desen', header=None, names=['desen'])
 
     try:
-	    resofs = pd.read_csv(b+'.resofs', header=None)
-	    
-	    ## Add start- and end-time and filebase of each session to the "stages"-<DataFrame>
-	    stages['start_t'] = [0] + list(resofs.squeeze().values)[:-1]
-	    stages['end_t'] = resofs
+        resofs = pd.read_csv(b+'.resofs', header=None)
+
+        # Add start- and end-time and filebase of each session to the "stages"-<DataFrame>
+        stages['start_t'] = [0] + list(resofs.squeeze().values)[:-1]
+        stages['end_t'] = resofs
     except:
-	    1 #print('resofs not found')
+        1  # print('resofs not found')
     stages['filebase'] = par['sessions']
 
-    ## Let the index of this <DataFrame> start from 1 instead of 0
+    # Let the index of this <DataFrame> start from 1 instead of 0
     stages.index += 1
 
-    ## Add "stage" as column, and set name of column-index to "stage" (NOTE: not sure why this is needed!?)
+    # Add "stage" as column, and set name of column-index to "stage" (NOTE: not sure why this is needed!?)
     #stages['stage'] = stages.index
     #stages.index.set_names('stage', inplace=True)
 
-    ## Return the "stages"-information as <DataFrame>
+    # Return the "stages"-information as <DataFrame>
     return stages
 
+
 def LoadPar(b):
+    '''LoadPar
+    Parses block or stage level par file into <dict>-object.
 
-        '''LoadPar
-        Parses block or stage level par file into <dict>-object.
+    INPUT:
+    - [b]:   <str> containing "block base" (= path + file-base; e.g., '/mnfs/swrd3/data/ddLab_merged/mdm96-2006-0124/mdm96-2006-0124')
 
-        INPUT:
-        - [b]:   <str> containing "block base" (= path + file-base; e.g., '/mnfs/swrd3/data/ddLab_merged/mdm96-2006-0124/mdm96-2006-0124')
+    OUTPUT:
+    - [par]: <dict> containing important info from par-file
+               - 'nch' = <int> total number of recorded channels
+               - 'ref_ch' = <int> channelID of 'reference'
+               - 'ref_trode' = <int> tetrode-number of 'reference'
+               - 'trode_ch' = <list> with for each tetrode a <list> with its channelIDs
+               - 'sessions' = <list> with all session-names'''
 
-        OUTPUT:
-        - [par]: <dict> containing important info from par-file
-                   - 'nch' = <int> total number of recorded channels
-                   - 'ref_ch' = <int> channelID of 'reference'
-                   - 'ref_trode' = <int> tetrode-number of 'reference'
-                   - 'trode_ch' = <list> with for each tetrode a <list> with its channelIDs
-                   - 'sessions' = <list> with all session-names'''
+    # Read par-file, returns a <list> with each row converted into a <str>
+    lines = open(b+'.par').readlines()
 
-        ## Read par-file, returns a <list> with each row converted into a <str>
-        lines = open(b+'.par').readlines()
+    # Create an "anonymous" function to split a <str> into its constituent integers
+    #to_ints = lambda x:map(int, x.split())
 
-        ## Create an "anonymous" function to split a <str> into its constituent integers
-        #to_ints = lambda x:map(int, x.split())
+    # Extract total number of channels, number of tetrodes and channelID of "reference"
+    nch, bits = np.array(lines[0].split()).astype(int)
+    num_trodes, ref_ch = np.array(lines[2].split())  # .astype(int)
+    num_trodes = int(num_trodes)
 
-        ## Extract total number of channels, number of tetrodes and channelID of "reference"
-        nch, bits = np.array(lines[0].split()).astype(int)
-        num_trodes, ref_ch = np.array(lines[2].split()) #.astype(int)
-        num_trodes = int(num_trodes)
+    # Create <list> with for each tetrode a <list> with its  channelIDs
+    trode_ch = []
+    # -loop over all tetrodes
+    for l in lines[3:3+num_trodes]:
+        l = np.array(l.split()).astype(int)  # to_ints(l)
+        t = l[1:]
+        # -check whether for this tetrode correct number of channels is listed in par-file
+        assert l[0] == len(t), 'par error: n ch in trode'
+        trode_ch.append(t)
 
-        ## Create <list> with for each tetrode a <list> with its  channelIDs
-        trode_ch = []
-        # -loop over all tetrodes
-        for l in lines[3:3+num_trodes]:
-            l = np.array(l.split()).astype(int) #to_ints(l)
-            t = l[1:]
-            # -check whether for this tetrode correct number of channels is listed in par-file
-            assert l[0]==len(t), 'par error: n ch in trode'
-            trode_ch.append(t)
+    # Find tetrode-number of "reference"
+    for tetrodeIndex in range(1, num_trodes+1):
+        if type(ref_ch) is int:
+            if ref_ch in trode_ch[tetrodeIndex-1]:
+                ref_trode = tetrodeIndex
+            else:
+                ref_trode = 'not specified'
 
-        ## Find tetrode-number of "reference"
-        for tetrodeIndex in range(1, num_trodes+1):
-            if type(ref_ch) is int:
-            	if ref_ch in trode_ch[tetrodeIndex-1]:
-                	ref_trode = tetrodeIndex
-            	else:
-                	ref_trode = 'not specified'
+    # Create <list> with all session-names
+    sessions = list(map(str.strip, lines[4+num_trodes:]))
+    # -check whehter correct number of sessions is listed in par-file
+    assert int(lines[3+num_trodes]) == len(sessions), 'par error: n sessions'
 
-        ## Create <list> with all session-names
-        sessions = list(map(str.strip, lines[4+num_trodes:]))
-        # -check whehter correct number of sessions is listed in par-file
-        assert int(lines[3+num_trodes])==len(sessions), 'par error: n sessions'
+    # Create <dict>-object and return it
+    if 'ref_trode' in globals():
+        par = {'nch': nch, 'ref_ch': ref_ch, 'ref_trode': ref_trode,
+               'trode_ch': trode_ch, 'sessions': sessions}
+    else:
+        par = {'nch': nch, 'ref_ch': ref_ch,
+               'trode_ch': trode_ch, 'sessions': sessions}
+    return par
 
-        ## Create <dict>-object and return it
-        if 'ref_trode' in globals():
-            	par = {'nch':nch, 'ref_ch':ref_ch, 'ref_trode':ref_trode, 'trode_ch':trode_ch, 'sessions':sessions}
-        else:
-            	par = {'nch':nch, 'ref_ch':ref_ch, 'trode_ch':trode_ch, 'sessions':sessions}
-        return par
 
 def LoadTrodes(b, par=None):
-        '''Load "trodes" information (mostly from desel- and par-file).
+    '''Load "trodes" information (mostly from desel- and par-file).
 
-        INPUT:
-        - [b]:       <str> containing "block base"
+    INPUT:
+    - [b]:       <str> containing "block base"
 
-        OUTPUT:
-        - [trodes]:  <DataFrame>'''
+    OUTPUT:
+    - [trodes]:  <DataFrame>'''
 
-        ## If not provided, load the par-file information
-        if par is None:
-            par = LoadPar(b)
+    # If not provided, load the par-file information
+    if par is None:
+        par = LoadPar(b)
 
-        ## Read desel-file and store as <DataFrame> using "pandas"-package
-        trodes = pd.read_csv(b+'.desel', header=None, names=['desel'])
+    # Read desel-file and store as <DataFrame> using "pandas"-package
+    trodes = pd.read_csv(b+'.desel', header=None, names=['desel'])
 
-        ## Add for each tetrode its # of channels, the channelID of its 
-        ## "main" channel and a list of all its channelIDs to the "trodes"-<DataFrame>
-        trodes['n_tr_ch'] = list(map(len, par['trode_ch']))
+    # Add for each tetrode its # of channels, the channelID of its
+    # "main" channel and a list of all its channelIDs to the "trodes"-<DataFrame>
+    trodes['n_tr_ch'] = list(map(len, par['trode_ch']))
 
-        aux = [pari for (pari,par_) in enumerate(par['trode_ch']) if np.size(par_)==0]
-        for aux_ in aux:
-                par['trode_ch'][aux_] = np.array([-1])
-        trodes['lfp_ch'] = list(map(lambda x: x[0], par['trode_ch']))
+    aux = [pari for (pari, par_) in enumerate(
+        par['trode_ch']) if np.size(par_) == 0]
+    for aux_ in aux:
+        par['trode_ch'][aux_] = np.array([-1])
+    trodes['lfp_ch'] = list(map(lambda x: x[0], par['trode_ch']))
 
-        ## Let the index of this <DatLoadStagesaFrame> start from 1 instead of 0
-        trodes.index += 1
+    # Let the index of this <DatLoadStagesaFrame> start from 1 instead of 0
+    trodes.index += 1
 
-        ## Add "trode" as column, and set name of column-index to "trode" (NOTE: not sure why this is needed!?)
-        #trodes['trode'] = trodes.index
-        #trodes.index.set_names('trode', inplace=True)
+    # Add "trode" as column, and set name of column-index to "trode" (NOTE: not sure why this is needed!?)
+    #trodes['trode'] = trodes.index
+    #trodes.index.set_names('trode', inplace=True)
 
-        trodes['desel'] = trodes['desel'].astype(str)
+    trodes['desel'] = trodes['desel'].astype(str)
 
-        ## Return the "trodes"-information as <DataFrame>
-        return trodes
+    # Return the "trodes"-information as <DataFrame>
+    return trodes
 
-def LoadIntervals(b,ext,toeeg=True):
 
-        ## Read in the file, store as <DataFrame> and return
-        interval = pd.read_csv(b+ext, sep='\s+', header=None,names=['begin','end'])
-        if toeeg:
-            interval['begin'] = (interval['begin']*(1250./20000)).astype(int)
-            interval['end'] = (interval['end']*(1250./20000)).astype(int)
-        else:
-            interval['begin'] = (interval['begin']).astype(int)
-            interval['end'] = (interval['end']).astype(int)
-        return interval
+def LoadIntervals(b, ext, toeeg=True):
+
+    # Read in the file, store as <DataFrame> and return
+    interval = pd.read_csv(b+ext, sep='\s+', header=None,
+                           names=['begin', 'end'])
+    if toeeg:
+        interval['begin'] = (interval['begin']*(1250./20000)).astype(int)
+        interval['end'] = (interval['end']*(1250./20000)).astype(int)
+    else:
+        interval['begin'] = (interval['begin']).astype(int)
+        interval['end'] = (interval['end']).astype(int)
+    return interval
+
 
 def bfrombs(bs):
-        return bs[:np.max([i for (i,char_) in enumerate(bs) if char_=='_'])]
+    return bs[:np.max([i for (i, char_) in enumerate(bs) if char_ == '_'])]
 
-def loadlfps(bs,usedesel=False):
 
-        aux = np.max([i for (i,val) in enumerate(bs) if val=='_'])
-        base = bs[:aux]
+def loadlfps(bs, usedesel=False):
 
-        par = LoadPar(base)
-        trodes = LoadTrodes(base)
-        path = bs+'.eeg'
-        lfps_ = MapLFPs(path,par['nch'])
-        if usedesel:
-                trodes = LoadTrodes(bfrombs(bs))
-                lfps_ = lfps_[trodes['lfp_ch'],:]
-                lfps_[trodes['lfp_ch']<0,:] = 0
-        return lfps_
+    aux = np.max([i for (i, val) in enumerate(bs) if val == '_'])
+    base = bs[:aux]
 
-def MapLFPs(path, nch, dtype=int16,order='F'):
-        '''Returns a 2D numpy <memmap>-object to a binary file, which is indexable as [channel, sample].
+    par = LoadPar(base)
+    trodes = LoadTrodes(base)
+    path = bs+'.eeg'
+    lfps_ = MapLFPs(path, par['nch'])
+    if usedesel:
+        trodes = LoadTrodes(bfrombs(bs))
+        lfps_ = lfps_[trodes['lfp_ch'], :]
+        lfps_[trodes['lfp_ch'] < 0, :] = 0
+    return lfps_
 
-        INPUT:
-        - [path]:              <str> containing full path to binary-file
-        - [nch]:               <int> number of channels in binary file
-        - [dtype]=np.int16:    <numpy-type> of binary data points'''
 
-        ## Calculate the total number of data points in the provided binary-file
-        size = os.path.getsize(path)
-        size = int(size/np.dtype(dtype).itemsize)
+def MapLFPs(path, nch, dtype=int16, order='F'):
+    '''Returns a 2D numpy <memmap>-object to a binary file, which is indexable as [channel, sample].
 
-        ## Create and return the 2D memory-map object
-        memMap = np.memmap(path, mode='r', dtype=dtype, order=order, shape=(nch, int(size/nch)))
+    INPUT:
+    - [path]:              <str> containing full path to binary-file
+    - [nch]:               <int> number of channels in binary file
+    - [dtype]=np.int16:    <numpy-type> of binary data points'''
 
-        return memMap
+    # Calculate the total number of data points in the provided binary-file
+    size = os.path.getsize(path)
+    size = int(size/np.dtype(dtype).itemsize)
+
+    # Create and return the 2D memory-map object
+    memMap = np.memmap(path, mode='r', dtype=dtype,
+                       order=order, shape=(nch, int(size/nch)))
+
+    return memMap
 
 
 def readfoldernm(folder):
-        aux = np.max([i for (i,char_) in enumerate(folder) if char_ == '/'])
-        recday = folder[1+aux:]         
-        b = folder+'/'+recday
-    
-        return b,recday
+    aux = np.max([i for (i, char_) in enumerate(folder) if char_ == '/'])
+    recday = folder[1+aux:]
+    b = folder+'/'+recday
 
-def resofs(b,dtype=np.int16,order='F'):
-        
-        ss = LoadStages(b).index
-        par = LoadPar(b)
-        nch = int(par['nch'])
-        
-        resofs = np.zeros(len(ss))
-        for (si,s) in enumerate(ss):
-                bs = b+'_'+str(s)
-                path = bs+'.eeg'
+    return b, recday
 
-                size = os.path.getsize(path)
-                size = int(size/np.dtype(dtype).itemsize)
-                resofs[si] = size/(nch*1250)
-                
-        return resofs
 
-def loadColors(n,cmap,shuffle=False):
+def resofs(b, dtype=np.int16, order='F'):
 
-        import matplotlib.pyplot as plt
-        colors = plt.get_cmap(cmap)(np.linspace(1,0,n))
-        if shuffle:
-                colors = colors[np.argsort(np.random.rand(n))]
+    ss = LoadStages(b).index
+    par = LoadPar(b)
+    nch = int(par['nch'])
 
-        return colors
+    resofs = np.zeros(len(ss))
+    for (si, s) in enumerate(ss):
+        bs = b+'_'+str(s)
+        path = bs+'.eeg'
 
-def save(filename,data):
-	
-	output = open(filename, 'wb')
-	np.save(output,data)
-	output.close()
+        size = os.path.getsize(path)
+        size = int(size/np.dtype(dtype).itemsize)
+        resofs[si] = size/(nch*1250)
 
-def savefig(filename,format_='svg'):
-        import matplotlib.pyplot as plt
-        from vPlotFunctions import config
-        config()
-        plt.savefig(filename+'.'+format_, format=format_)
+    return resofs
 
-def ThetaFilter(RawLFP,SamplingRate=sr,ThetaLow=4.,ThetaHigh=16.,FilterOrder=4,axis=-1):
-    
-	ThetaLowNorm = (2./SamplingRate)*ThetaLow # Hz * (2/SamplingRate)
-	ThetaHighNorm = (2./SamplingRate)*ThetaHigh # Hz * (2/SamplingRate)
-    
-	# filtering
-	b,a = sig.butter(FilterOrder,[ThetaLowNorm,ThetaHighNorm],'band') # filter design
-	Theta = sig.filtfilt(b,a,RawLFP,axis=axis)
-	
-	return Theta
 
-def bandpass(signal,lowf,hif,sr=sr,FilterOrder=4,axis=-1):
-    
-        lowf_ = (2./sr)*lowf # Hz * (2/SamplingRate)
-        hif_ = (2./sr)*hif # Hz * (2/SamplingRate)
-    
-        # filtering
-        b,a = sig.butter(FilterOrder,[lowf_,hif_],'band') # filter design
-        output = sig.filtfilt(b,a,signal,axis=axis)
+def loadColors(n, cmap, shuffle=False):
 
-        return output
+    import matplotlib.pyplot as plt
+    colors = plt.get_cmap(cmap)(np.linspace(1, 0, n))
+    if shuffle:
+        colors = colors[np.argsort(np.random.rand(n))]
 
-def highpass(signal,fcut,sr=1250.,FilterOrder=4,axis=-1):
+    return colors
 
-        hif_ = (2./sr)*fcut # Hz * (2/SamplingRate)
-    
-        # filtering
-        b,a = sig.butter(FilterOrder,hif_,'high') # filter design
-        output = sig.filtfilt(b,a,signal,axis=axis)
 
-        return output
-    
+def save(filename, data):
+
+    output = open(filename, 'wb')
+    np.save(output, data)
+    output.close()
+
+
+def savefig(filename, format_='svg'):
+    import matplotlib.pyplot as plt
+    from vPlotFunctions import config
+    config()
+    plt.savefig(filename+'.'+format_, format=format_)
+
+
+def ThetaFilter(RawLFP, SamplingRate=sr, ThetaLow=4., ThetaHigh=16., FilterOrder=4, axis=-1):
+
+    ThetaLowNorm = (2./SamplingRate)*ThetaLow  # Hz * (2/SamplingRate)
+    ThetaHighNorm = (2./SamplingRate)*ThetaHigh  # Hz * (2/SamplingRate)
+
+    # filtering
+    # filter design
+    b, a = sig.butter(FilterOrder, [ThetaLowNorm, ThetaHighNorm], 'band')
+    Theta = sig.filtfilt(b, a, RawLFP, axis=axis)
+
+    return Theta
+
+
+def bandpass(signal, lowf, hif, sr=sr, FilterOrder=4, axis=-1):
+
+    lowf_ = (2./sr)*lowf  # Hz * (2/SamplingRate)
+    hif_ = (2./sr)*hif  # Hz * (2/SamplingRate)
+
+    # filtering
+    b, a = sig.butter(FilterOrder, [lowf_, hif_], 'band')  # filter design
+    output = sig.filtfilt(b, a, signal, axis=axis)
+
+    return output
+
+
+def highpass(signal, fcut, sr=1250., FilterOrder=4, axis=-1):
+
+    hif_ = (2./sr)*fcut  # Hz * (2/SamplingRate)
+
+    # filtering
+    b, a = sig.butter(FilterOrder, hif_, 'high')  # filter design
+    output = sig.filtfilt(b, a, signal, axis=axis)
+
+    return output
+
 #########################################################################################################
 #### PEAK DETECTION #####################################################################################
 ################ __author__ = "Marcos Duarte, https://github.com/demotu/BMC"        #####################
@@ -323,9 +346,9 @@ def highpass(signal,fcut,sr=1250.,FilterOrder=4,axis=-1):
 ################     ____license__ = "MIT"                                          #####################
 #########################################################################################################
 
-def detectPeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
-                 kpsh=False, valley=False, show=False, ax=None):
 
+def detectPeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
+                kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
 
     Parameters
@@ -361,7 +384,7 @@ def detectPeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     -----
     The detection of valleys instead of peaks is performed internally by simply
     negating the data: `ind_valleys = detect_peaks(-x)`
-    
+
     The function can handle NaN's 
 
     See this IPython Notebook [1]_.
@@ -417,14 +440,17 @@ def detectPeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         ine = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) > 0))[0]
     else:
         if edge.lower() in ['rising', 'both']:
-            ire = np.where((np.hstack((dx, 0)) <= 0) & (np.hstack((0, dx)) > 0))[0]
+            ire = np.where((np.hstack((dx, 0)) <= 0) &
+                           (np.hstack((0, dx)) > 0))[0]
         if edge.lower() in ['falling', 'both']:
-            ife = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) >= 0))[0]
+            ife = np.where((np.hstack((dx, 0)) < 0) &
+                           (np.hstack((0, dx)) >= 0))[0]
     ind = np.unique(np.hstack((ine, ire, ife)))
     # handle NaN's
     if ind.size and indnan.size:
         # NaN's and values close to NaN's cannot be peaks
-        ind = ind[np.in1d(ind, np.unique(np.hstack((indnan, indnan-1, indnan+1))), invert=True)]
+        ind = ind[np.in1d(ind, np.unique(
+            np.hstack((indnan, indnan-1, indnan+1))), invert=True)]
     # first and last values of x cannot be peaks
     if ind.size and ind[0] == 0:
         ind = ind[1:]
@@ -462,748 +488,815 @@ def detectPeaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 #########################################################################################################
 #########################################################################################################
 
-def defineThetaCycles(Theta,lowFreqAmp,SamplingRate=1250.):
 
-	# Theta: theta component of your signal (might be EMD-based)
-	# ... for EEMD approach -> 'auxsignal' must be the low-frequency component envelope that will be 
-	#			        used as amplitude threshold in STEP 2 below.
-	#                          'lowfreqCutOff' must be str 'emd'
+def defineThetaCycles(Theta, lowFreqAmp, SamplingRate=1250.):
 
-	###################################################################################################
-	# STEP 1. Define some parameters ################################################################
-	# below define what is be the minimum peak to peak (and valley to valley) interval allowed
-	MinPeak2PeakDistance = int(round((1./15)*SamplingRate)) # I use a 15-Hz cycle
+    # Theta: theta component of your signal (might be EMD-based)
+    # ... for EEMD approach -> 'auxsignal' must be the low-frequency component envelope that will be
+    #			        used as amplitude threshold in STEP 2 below.
+    #                          'lowfreqCutOff' must be str 'emd'
 
-	# below define what is be the maximum peak to peak (and valley to valley) interval allowed
-	MaxPeak2PeakDistance = int(round((1./5)*SamplingRate)) # I use a 5-Hz cycle
+    ###################################################################################################
+    # STEP 1. Define some parameters ################################################################
+    # below define what is be the minimum peak to peak (and valley to valley) interval allowed
+    MinPeak2PeakDistance = int(
+        round((1./15)*SamplingRate))  # I use a 15-Hz cycle
 
-	# below define what is the maximum and minimum peak to valley internval
-	MinPeak2ValleyDistance = int(round((1./16)*SamplingRate/2)) # 16-Hz half-cycle for minimum 
-	MaxPeak2ValleyDistance = int(round((1./4)*SamplingRate/2)) # 4-Hz half-cycle for maximum
+    # below define what is be the maximum peak to peak (and valley to valley) interval allowed
+    MaxPeak2PeakDistance = int(
+        round((1./5)*SamplingRate))  # I use a 5-Hz cycle
 
-	###################################################################################################
-	# STEP 2. Define thresholds for peak detection ####################################################
+    # below define what is the maximum and minimum peak to valley internval
+    # 16-Hz half-cycle for minimum
+    MinPeak2ValleyDistance = int(round((1./16)*SamplingRate/2))
+    # 4-Hz half-cycle for maximum
+    MaxPeak2ValleyDistance = int(round((1./4)*SamplingRate/2))
 
-	# I use two threholds.
+    ###################################################################################################
+    # STEP 2. Define thresholds for peak detection ####################################################
 
-	# FIRST THRESHOLD is based on slow oscillations oscillations. 
-	# The rationale is that we want real theta oscillations and not 1/f signals. 
-	# So theta peaks have to be larger than low-frequency amplitudes.
+    # I use two threholds.
 
-	lowfreqthrs = np.copy(lowFreqAmp)
-	
-	# SECOND THRESHOLD is a fixed (arbitrary) threshold
-	# I'm looking still for a better definition.
-	MinThetaPeakAmplitude = np.median(np.abs(Theta))*.25
-	# this is to avoid to get periods where the signal is (nearly) flat
+    # FIRST THRESHOLD is based on slow oscillations oscillations.
+    # The rationale is that we want real theta oscillations and not 1/f signals.
+    # So theta peaks have to be larger than low-frequency amplitudes.
 
-	# line below combines both thresholds
-	lowfreqthrs[lowfreqthrs<MinThetaPeakAmplitude] = MinThetaPeakAmplitude	
+    lowfreqthrs = np.copy(lowFreqAmp)
 
-	###################################################################################################
-	# STEP 3. Theta peak and valley detection #########################################################
+    # SECOND THRESHOLD is a fixed (arbitrary) threshold
+    # I'm looking still for a better definition.
+    MinThetaPeakAmplitude = np.median(np.abs(Theta))*.25
+    # this is to avoid to get periods where the signal is (nearly) flat
 
-	# I use this function for peak detection. It is in ddLab
-	PeakIs = detect_peaks(Theta,show=False,mph=MinThetaPeakAmplitude,mpd=MinPeak2PeakDistance)
-	ValleyIs = detect_peaks(-Theta,show=False,mph=MinThetaPeakAmplitude,mpd=MinPeak2PeakDistance)
+    # line below combines both thresholds
+    lowfreqthrs[lowfreqthrs < MinThetaPeakAmplitude] = MinThetaPeakAmplitude
 
-	# then, take only peaks and valleys that pass amplitude thresholds
-	PeakIs = PeakIs[Theta[PeakIs]>=lowfreqthrs[PeakIs]]
-	ValleyIs = np.unique(ValleyIs[Theta[ValleyIs]<=-lowfreqthrs[ValleyIs]])
+    ###################################################################################################
+    # STEP 3. Theta peak and valley detection #########################################################
 
-	###################################################################################################
-	# STEP 4. Definitions of Theta cycles #############################################################
+    # I use this function for peak detection. It is in ddLab
+    PeakIs = detect_peaks(
+        Theta, show=False, mph=MinThetaPeakAmplitude, mpd=MinPeak2PeakDistance)
+    ValleyIs = detect_peaks(-Theta, show=False,
+                            mph=MinThetaPeakAmplitude, mpd=MinPeak2PeakDistance)
 
-	# in order to 'detect' a theta cycle I go valley by valley and check if the preceding AND the subsequent 
-	# detected peaks are within a distance compatible with the theta cycle length (following the parameters 
-	# defined in the first step), c.f. the loop below.
+    # then, take only peaks and valleys that pass amplitude thresholds
+    PeakIs = PeakIs[Theta[PeakIs] >= lowfreqthrs[PeakIs]]
+    ValleyIs = np.unique(ValleyIs[Theta[ValleyIs] <= -lowfreqthrs[ValleyIs]])
 
-	# declaring variables as empty int arrays
-	ThetaCycleBegin = np.array([],dtype=int)
-	ThetaCycleEnd = np.array([],dtype=int)
-	CycleRefs = np.array([],dtype=int)
+    ###################################################################################################
+    # STEP 4. Definitions of Theta cycles #############################################################
 
-	# loop over valleys
-	for Valleyi in ValleyIs:
-	    
-		# gets first peak BEFORE valley
-		aux = PeakIs[(PeakIs>(Valleyi-MaxPeak2ValleyDistance))&(PeakIs<Valleyi)]
-		if np.size(aux)>0:
-			Peak1 = aux[np.argmax(aux)]
-		else:
-			Peak1 = -np.inf
-	    
-		# gets first peak AFTER valley
-		aux = PeakIs[(PeakIs<(Valleyi+MaxPeak2ValleyDistance))&(PeakIs>Valleyi)]
-		if np.size(aux)>0:
-	    		Peak2 = aux[np.argmin(aux)]
-		else:
-			Peak2 = -np.inf
-	    
-		# checks if both peak-valley distances are larger than minimum allowed
-		PeakValleyCheck1 = min((Valleyi-Peak1),(Peak2-Valleyi))\
-		                    >=MinPeak2ValleyDistance
-		# checks if both peak-valley distances are smaller than maximum allowed
-		PeakValleyCheck2 = max((Valleyi-Peak1),(Peak2-Valleyi))\
-		                    <=MaxPeak2ValleyDistance
-    	    
-		# if both conditions are satisfied, get theta cycle
-		if PeakValleyCheck1&PeakValleyCheck2:
-			if (Peak2-Peak1)<=MaxPeak2PeakDistance:
-				ThetaCycleBegin = np.append(ThetaCycleBegin,Peak1)
-				ThetaCycleEnd = np.append(ThetaCycleEnd,Peak2)
-				CycleRefs = np.append(CycleRefs,Valleyi)
+    # in order to 'detect' a theta cycle I go valley by valley and check if the preceding AND the subsequent
+    # detected peaks are within a distance compatible with the theta cycle length (following the parameters
+    # defined in the first step), c.f. the loop below.
 
-	CyclePeaks = np.asarray([ThetaCycleBegin,ThetaCycleEnd]).T
+    # declaring variables as empty int arrays
+    ThetaCycleBegin = np.array([], dtype=int)
+    ThetaCycleEnd = np.array([], dtype=int)
+    CycleRefs = np.array([], dtype=int)
 
-	# gets rid of cycles with coincident first edges.
-	aux = list(CyclePeaks[:,0])
-	cycles2remove = list(set([i for (i,x) in enumerate(aux) if aux.count(x) > 1]))
-	del aux
+    # loop over valleys
+    for Valleyi in ValleyIs:
 
-	CyclePeaks = np.delete(CyclePeaks,cycles2remove,0)
-	CycleTrough = np.delete(CycleRefs,cycles2remove,0)
+        # gets first peak BEFORE valley
+        aux = PeakIs[(PeakIs > (Valleyi-MaxPeak2ValleyDistance))
+                     & (PeakIs < Valleyi)]
+        if np.size(aux) > 0:
+            Peak1 = aux[np.argmax(aux)]
+        else:
+            Peak1 = -np.inf
 
-	nCycles = len(CycleTrough)
-	zeroscross1 = np.zeros(nCycles,dtype=int)
-	zeroscross2 = np.zeros(nCycles,dtype=int)
-	zeroscross3 = np.zeros(nCycles,dtype=int)
-	validCycles = np.zeros(nCycles,dtype=bool)
-	for cyclei in range(nCycles):
+        # gets first peak AFTER valley
+        aux = PeakIs[(PeakIs < (Valleyi+MaxPeak2ValleyDistance))
+                     & (PeakIs > Valleyi)]
+        if np.size(aux) > 0:
+            Peak2 = aux[np.argmin(aux)]
+        else:
+            Peak2 = -np.inf
 
-		aux1 = np.arange(CyclePeaks[cyclei,0]-MaxPeak2ValleyDistance,CyclePeaks[cyclei,0],dtype=int)
-		aux2 = np.arange(CyclePeaks[cyclei,0],CycleTrough[cyclei],dtype=int)
-		aux3 = np.arange(CycleTrough[cyclei],CyclePeaks[cyclei,1],dtype=int)
+        # checks if both peak-valley distances are larger than minimum allowed
+        PeakValleyCheck1 = min((Valleyi-Peak1), (Peak2-Valleyi))\
+            >= MinPeak2ValleyDistance
+        # checks if both peak-valley distances are smaller than maximum allowed
+        PeakValleyCheck2 = max((Valleyi-Peak1), (Peak2-Valleyi))\
+            <= MaxPeak2ValleyDistance
 
-		cond0 = (np.sum(Theta[aux1]<0)*np.sum(Theta[aux2]<0)*np.sum(Theta[aux3]>0))>0
-		if cond0:
-			zeroscross1[cyclei] = np.max(np.where(Theta[aux1]<0))+1+(CyclePeaks[cyclei,0]-MaxPeak2ValleyDistance)
-			zeroscross2[cyclei] = np.min(np.where(Theta[aux2]<0))+(CyclePeaks[cyclei,0])-1
-			zeroscross3[cyclei] = np.min(np.where(Theta[aux3]>0))+(CycleTrough[cyclei])-1
+        # if both conditions are satisfied, get theta cycle
+        if PeakValleyCheck1 & PeakValleyCheck2:
+            if (Peak2-Peak1) <= MaxPeak2PeakDistance:
+                ThetaCycleBegin = np.append(ThetaCycleBegin, Peak1)
+                ThetaCycleEnd = np.append(ThetaCycleEnd, Peak2)
+                CycleRefs = np.append(CycleRefs, Valleyi)
 
-			cond1 = np.sum(Theta[np.arange(zeroscross3[cyclei]+1,CyclePeaks[cyclei,1])]<0)<1
-			cond2 = np.sum(Theta[np.arange(zeroscross1[cyclei]+1,CyclePeaks[cyclei,0])]<0)<1
-			cond3 = np.sum(Theta[np.arange(zeroscross2[cyclei]+1,CycleTrough[cyclei])]>0)<1
-			validCycles[cyclei] = cond1&cond2&cond3
+    CyclePeaks = np.asarray([ThetaCycleBegin, ThetaCycleEnd]).T
 
-	cycleRefs = np.array([zeroscross1,CyclePeaks[:,0],zeroscross2,CycleTrough,zeroscross3,CyclePeaks[:,1]]).T
-	cycleRefs = cycleRefs[validCycles,:]
+    # gets rid of cycles with coincident first edges.
+    aux = list(CyclePeaks[:, 0])
+    cycles2remove = list(
+        set([i for (i, x) in enumerate(aux) if aux.count(x) > 1]))
+    del aux
 
-	return cycleRefs
+    CyclePeaks = np.delete(CyclePeaks, cycles2remove, 0)
+    CycleTrough = np.delete(CycleRefs, cycles2remove, 0)
 
-def DeltaFilter(RawLFP,SamplingRate=1250.,cutoff=5,FilterOrder=4):
-    
-	cutoff = (2./SamplingRate)*cutoff # Hz * (2/SamplingRate)
-    
-	# filtering
-	b,a = sig.butter(FilterOrder,cutoff,'lowpass') # filter design
-	Theta = sig.filtfilt(b,a,RawLFP)
-	
-	return Theta
+    nCycles = len(CycleTrough)
+    zeroscross1 = np.zeros(nCycles, dtype=int)
+    zeroscross2 = np.zeros(nCycles, dtype=int)
+    zeroscross3 = np.zeros(nCycles, dtype=int)
+    validCycles = np.zeros(nCycles, dtype=bool)
+    for cyclei in range(nCycles):
+
+        aux1 = np.arange(
+            CyclePeaks[cyclei, 0]-MaxPeak2ValleyDistance, CyclePeaks[cyclei, 0], dtype=int)
+        aux2 = np.arange(CyclePeaks[cyclei, 0], CycleTrough[cyclei], dtype=int)
+        aux3 = np.arange(CycleTrough[cyclei], CyclePeaks[cyclei, 1], dtype=int)
+
+        cond0 = (np.sum(Theta[aux1] < 0)*np.sum(Theta[aux2]
+                 < 0)*np.sum(Theta[aux3] > 0)) > 0
+        if cond0:
+            zeroscross1[cyclei] = np.max(
+                np.where(Theta[aux1] < 0))+1+(CyclePeaks[cyclei, 0]-MaxPeak2ValleyDistance)
+            zeroscross2[cyclei] = np.min(
+                np.where(Theta[aux2] < 0))+(CyclePeaks[cyclei, 0])-1
+            zeroscross3[cyclei] = np.min(
+                np.where(Theta[aux3] > 0))+(CycleTrough[cyclei])-1
+
+            cond1 = np.sum(
+                Theta[np.arange(zeroscross3[cyclei]+1, CyclePeaks[cyclei, 1])] < 0) < 1
+            cond2 = np.sum(
+                Theta[np.arange(zeroscross1[cyclei]+1, CyclePeaks[cyclei, 0])] < 0) < 1
+            cond3 = np.sum(
+                Theta[np.arange(zeroscross2[cyclei]+1, CycleTrough[cyclei])] > 0) < 1
+            validCycles[cyclei] = cond1 & cond2 & cond3
+
+    cycleRefs = np.array([zeroscross1, CyclePeaks[:, 0], zeroscross2,
+                         CycleTrough, zeroscross3, CyclePeaks[:, 1]]).T
+    cycleRefs = cycleRefs[validCycles, :]
+
+    return cycleRefs
+
+
+def DeltaFilter(RawLFP, SamplingRate=1250., cutoff=5, FilterOrder=4):
+
+    cutoff = (2./SamplingRate)*cutoff  # Hz * (2/SamplingRate)
+
+    # filtering
+    b, a = sig.butter(FilterOrder, cutoff, 'lowpass')  # filter design
+    Theta = sig.filtfilt(b, a, RawLFP)
+
+    return Theta
+
 
 def TortModIndex(meanAmp):
-        nph = np.size(meanAmp,0)
-        normMeanAmp = meanAmp/np.kron(np.ones((nph,1)), np.sum(meanAmp,axis=0))
-        logNBins = np.log2(nph)
-        
-        HP = -sum(normMeanAmp*np.log2(normMeanAmp))
-        Dkl = logNBins-HP
-        
-        return Dkl/logNBins
+    nph = np.size(meanAmp, 0)
+    normMeanAmp = meanAmp/np.kron(np.ones((nph, 1)), np.sum(meanAmp, axis=0))
+    logNBins = np.log2(nph)
 
-def runAmp2Ph(spect,phase,phaseedges):
+    HP = -sum(normMeanAmp*np.log2(normMeanAmp))
+    Dkl = logNBins-HP
 
-        reclen = len(phase)
-        spect = spect.reshape(-1,reclen)
-        nPh = len(phaseedges)-1
-        ampphase = np.zeros((len(spect),nPh))
-        for phbi in range(nPh):
-                phsmps = (phase>=phaseedges[phbi])&(phase<=phaseedges[phbi+1])
-                ampphase[:,phbi] = np.mean(spect[:,phsmps],axis=1)
-                
-        return ampphase
+    return Dkl/logNBins
 
-def getThetaPhases(cycleRefs,signalLen):
 
-        phase = np.zeros(signalLen)+np.nan
-        nCycles = np.size(cycleRefs,0)
-        for cyclei in range(nCycles):
-                phaserefs = cycleRefs[cyclei,:]
-                for phaserefi in range(len(phaserefs)-2):
-                        initialphase = (-np.pi/2)+(np.pi/2)*phaserefi
-                        endphase = (-np.pi/2)+(np.pi/2)*(phaserefi+1)
-                        quadrantSamples = range(phaserefs[phaserefi],phaserefs[phaserefi+1])
-                        quadrantTimeLength =  len(quadrantSamples)
-                        phase[quadrantSamples] = np.linspace(initialphase,endphase,quadrantTimeLength+1)[0:-1]
+def runAmp2Ph(spect, phase, phaseedges):
 
-        validPhases = np.where(~np.isnan(phase))[0]
-        phase[validPhases[phase[validPhases]<0]] += 2*np.pi
+    reclen = len(phase)
+    spect = spect.reshape(-1, reclen)
+    nPh = len(phaseedges)-1
+    ampphase = np.zeros((len(spect), nPh))
+    for phbi in range(nPh):
+        phsmps = (phase >= phaseedges[phbi]) & (phase <= phaseedges[phbi+1])
+        ampphase[:, phbi] = np.mean(spect[:, phsmps], axis=1)
 
-        return phase
+    return ampphase
+
+
+def getThetaPhases(cycleRefs, signalLen):
+
+    phase = np.zeros(signalLen)+np.nan
+    nCycles = np.size(cycleRefs, 0)
+    for cyclei in range(nCycles):
+        phaserefs = cycleRefs[cyclei, :]
+        for phaserefi in range(len(phaserefs)-2):
+            initialphase = (-np.pi/2)+(np.pi/2)*phaserefi
+            endphase = (-np.pi/2)+(np.pi/2)*(phaserefi+1)
+            quadrantSamples = range(
+                phaserefs[phaserefi], phaserefs[phaserefi+1])
+            quadrantTimeLength = len(quadrantSamples)
+            phase[quadrantSamples] = np.linspace(
+                initialphase, endphase, quadrantTimeLength+1)[0:-1]
+
+    validPhases = np.where(~np.isnan(phase))[0]
+    phase[validPhases[phase[validPhases] < 0]] += 2*np.pi
+
+    return phase
+
 
 def binEdges2Centres(BinEdges):
 
-	BinCenters = np.convolve(BinEdges,[.5,.5],'same')
-	BinCenters = BinCenters[1::]
+    BinCenters = np.convolve(BinEdges, [.5, .5], 'same')
+    BinCenters = BinCenters[1::]
 
-	return BinCenters
+    return BinCenters
 
-def hist(data,bins):
 
-	Counts,BinEdges = np.histogram(data,bins)
-	BinCenters = binEdges2Centres(BinEdges)
- 
-	return Counts,BinCenters,BinEdges
+def hist(data, bins):
 
-def getIMFmainfreq(IA,IF):
+    Counts, BinEdges = np.histogram(data, bins)
+    BinCenters = binEdges2Centres(BinEdges)
 
-	nimfs = np.size(IA,0)
+    return Counts, BinCenters, BinEdges
 
-	mainfreqs = np.zeros(nimfs)
-	for imfi in range(nimfs):
 
-                if0 = np.copy(IF[imfi,1:-1]) #np.copy(IF[1:,imfi])
-                ia0 = np.copy(IA[imfi,1:-1]) #np.copy(IA[1:,imfi])
+def getIMFmainfreq(IA, IF):
 
-                mainfreqs[imfi] = np.sum(if0*pow(ia0,2))/np.sum(pow(ia0,2))
+    nimfs = np.size(IA, 0)
 
-	return mainfreqs
+    mainfreqs = np.zeros(nimfs)
+    for imfi in range(nimfs):
 
-def normrows(matrix,op=np.min):
-    
-        mins = op(matrix,axis=1)
-        mins = np.tile(mins,(np.size(matrix,1),1)).T
-        
-        nmatrix = matrix/mins
-        
-        return nmatrix
+        if0 = np.copy(IF[imfi, 1:-1])  # np.copy(IF[1:,imfi])
+        ia0 = np.copy(IA[imfi, 1:-1])  # np.copy(IA[1:,imfi])
 
-def computeActMat(res,clu,cluIds='all',units=None):
+        mainfreqs[imfi] = np.sum(if0*pow(ia0, 2))/np.sum(pow(ia0, 2))
 
-        if type(cluIds) is str:
-                if cluIds is 'all':
-                        if units is None:
-                                cluIds = np.unique(clu)
-                        else:
-                                cluIds = units.index
-                elif not(units is None):
-                        cluIds = np.array(units['des'].index[units['des']==cluIds])
-        indexes = np.in1d(clu,cluIds)
-        clu = clu[indexes]
-        res = res[indexes]
-        
-        nclu = len(cluIds)
-        
-        ncols = np.max(res)+1
-        
-        bins = np.arange(0,ncols+1) # this will be changed for different binsizes
-        actMat = np.zeros((nclu,ncols),dtype=int)
-        for (clui,cluid) in enumerate(cluIds):
-                spks = res[clu==cluid]
-                actMat0,_,_ = hist(spks,bins)
-                actMat[clui,:] = actMat0
-                
-        return actMat,cluIds
+    return mainfreqs
 
-def triggeredAverage(sig2trig,trigger,taLen=500,sr=1250.,average=True):
-    
-        taLen = int(taLen)
-        prepost = np.arange(taLen,dtype=int)-int(taLen/2)
-        if len(np.shape(sig2trig))==1:
-                sig2trig = sig2trig[None,:]
 
-        trigger = trigger[trigger<(np.size(sig2trig,1)+np.min(prepost))]
+def normrows(matrix, op=np.min):
 
-        if average:
-                ta = np.zeros((np.size(sig2trig,0),taLen))
-                for t in trigger:
-                        ta += sig2trig[:,t+prepost]
-                ta /= len(trigger)
-                ta = ta.squeeze()
+    mins = op(matrix, axis=1)
+    mins = np.tile(mins, (np.size(matrix, 1), 1)).T
+
+    nmatrix = matrix/mins
+
+    return nmatrix
+
+
+def computeActMat(res, clu, cluIds='all', units=None):
+
+    if type(cluIds) is str:
+        if cluIds is 'all':
+            if units is None:
+                cluIds = np.unique(clu)
+            else:
+                cluIds = units.index
+        elif not(units is None):
+            cluIds = np.array(units['des'].index[units['des'] == cluIds])
+    indexes = np.in1d(clu, cluIds)
+    clu = clu[indexes]
+    res = res[indexes]
+
+    nclu = len(cluIds)
+
+    ncols = np.max(res)+1
+
+    bins = np.arange(0, ncols+1)  # this will be changed for different binsizes
+    actMat = np.zeros((nclu, ncols), dtype=int)
+    for (clui, cluid) in enumerate(cluIds):
+        spks = res[clu == cluid]
+        actMat0, _, _ = hist(spks, bins)
+        actMat[clui, :] = actMat0
+
+    return actMat, cluIds
+
+
+def triggeredAverage(sig2trig, trigger, taLen=500, sr=1250., average=True):
+
+    taLen = int(taLen)
+    prepost = np.arange(taLen, dtype=int)-int(taLen/2)
+    if len(np.shape(sig2trig)) == 1:
+        sig2trig = sig2trig[None, :]
+
+    trigger = trigger[trigger < (np.size(sig2trig, 1)+np.min(prepost))]
+
+    if average:
+        ta = np.zeros((np.size(sig2trig, 0), taLen))
+        for t in trigger:
+            ta += sig2trig[:, t+prepost]
+        ta /= len(trigger)
+        ta = ta.squeeze()
+    else:
+        ta = np.zeros((len(trigger), np.size(sig2trig, 0), taLen))
+        for (ti, t) in enumerate(trigger):
+            ta[ti] = sig2trig[:, t+prepost]
+
+    taxis = 1000.*prepost/sr
+
+    return ta, taxis
+
+
+def getActMat(res, clu, binage=125):
+
+    if type(binage) is int:
+        binedges = np.arange(0, np.max(res)+binage, binage)
+    elif type(binage) is np.ndarray:
+        binedges = binage
+    else:
+        print('ERROR!!! binage type not understood')
+        return None, None, None
+
+    nbins = len(binedges)-1
+
+    cluids = np.unique(clu)
+    nc = len(cluids)
+    actmat = np.zeros((nc, nbins))
+    for (ci, c) in enumerate(cluids):
+        spks = res[clu == c]
+        actmat[ci, :], bincentres, _ = hist(spks, binedges)
+
+    bincentres = bincentres
+
+    return actmat, bincentres, cluids
+
+
+def getCycleActMat(res, clu, cycles, units):
+
+    nunits = len(units)
+    ncycles = len(cycles)
+
+    actmat = np.zeros((nunits, ncycles))
+    for uniti, cluid in enumerate(units.index):
+
+        spktimes = res[clu == cluid]
+
+        cycleedges = cycles[:, np.array([0, 4])]
+        cycleedges[:, 1] += 1
+        cycleedges = cycleedges.reshape(-1)
+
+        actmat_, _, = np.histogram(spktimes, cycleedges)
+
+        actmat[uniti, :] = actmat_[np.arange(0, len(cycleedges), 2)]
+
+    return actmat
+
+
+def xcorr(a, b, maxlag, step=1):
+
+    import pandas as pd
+
+    datax = pd.Series(b)
+    datay = pd.Series(a)
+
+    lags = np.arange(-maxlag, maxlag, step)
+    output = np.zeros(len(lags))
+    lagi = -1
+    for lag in lags:
+        lagi += 1
+        output[lagi] = datax.corr(datay.shift(lag))
+
+    return output, lags
+
+
+def detect_OscBursts(lfp, minncy=8, band=[20, 30], surroundBand=[15, 60], thrs_=1.5, sr=sr):
+
+    lfpf = bandpass(lfp, band[0], band[1])
+
+    lfpf_hil = runHilbert(lfpf)
+    lfpf_env = np.abs(lfpf_hil)
+    lfpf_ph = np.angle(lfpf_hil)
+
+    lfpf_surround = bandpass(lfp, surroundBand[0], surroundBand[1])
+    lfpf_surround_env = np.abs(runHilbert(lfpf_surround))
+
+    candidates = detect_peaks(lfpf_env, show=False,
+                              mph=0, mpd=int(minncy*50*sr/1000))
+
+    thrs = thrs_*np.diff(np.percentile(lfpf_env[candidates], [25, 75]))\
+        + np.percentile(lfpf_env[candidates], 75)
+    thrsWin = thrs/2
+
+    candidates = candidates[lfpf_env[candidates] > thrs]
+
+    timestamps = np.array([], dtype=int).reshape(0, 3)
+    features = {'peakamp': np.array([]),
+                'ncycles': np.array([], dtype=int),
+                'meanfreq': np.array([]),
+                'dur': np.array([]),
+                'power': np.array([]),
+                'surpower': np.array([]),
+                'powerratio': np.array([])}
+
+    par = {'thrs': thrs,
+           'thrsWin': thrsWin,
+           'lfpf': lfpf}
+
+    for (ci, cx) in enumerate(candidates):
+
+        if np.sum(lfpf_env[:cx] < thrsWin) > 0:
+            onset = np.max(np.where(lfpf_env[:cx] < thrsWin)[0])
         else:
-                ta = np.zeros((len(trigger),np.size(sig2trig,0),taLen))
-                for (ti,t) in enumerate(trigger):
-                        ta[ti] = sig2trig[:,t+prepost]
+            onset = 0
 
-        taxis = 1000.*prepost/sr
-        
-        return ta,taxis
-
-def getActMat(res,clu,binage = 125):
-
-        if type(binage) is int:
-                binedges = np.arange(0,np.max(res)+binage,binage)
-        elif type(binage) is np.ndarray:
-                binedges = binage
+        if np.sum(lfpf_env[cx:] < thrsWin) > 0:
+            offset = cx + np.min(np.where(lfpf_env[cx:] < thrsWin)[0])
         else:
-                print('ERROR!!! binage type not understood')
-                return None,None,None
+            offset = len(lfpf_env)-1
 
-        nbins = len(binedges)-1
+        eventwin = np.array([onset, offset])
+        eventsamples = np.arange(eventwin.min(), eventwin.max()+1)
 
-        cluids = np.unique(clu)
-        nc = len(cluids)
-        actmat = np.zeros((nc,nbins))
-        for (ci,c) in enumerate(cluids):
-                spks = res[clu==c]
-                actmat[ci,:],bincentres,_ = hist(spks,binedges)
-        
-        bincentres = bincentres
-        
-        return actmat,bincentres,cluids
+        phase = np.copy(np.unwrap(lfpf_ph[eventsamples]))
+        phase -= phase[0]
+        ncycles = phase[-1]/(2*np.pi)
 
-def getCycleActMat(res,clu,cycles,units):
+        ampratio = pow(np.mean(lfpf_env[eventsamples]), 2)\
+            / pow(np.mean(lfpf_surround_env[eventsamples]), 2)
 
-        nunits = len(units)
-        ncycles = len(cycles)
-    
-        actmat = np.zeros((nunits,ncycles))
-        for uniti,cluid in enumerate(units.index):
+        power = pow(np.sum(lfpf_env[eventsamples]), 2)/1250.
+        surpower = pow(np.sum(lfpf_surround_env[eventsamples]), 2)/1250.
 
-                spktimes = res[clu==cluid]
+        powerratio = power/surpower
 
-                cycleedges = cycles[:,np.array([0,4])]
-                cycleedges[:,1] += 1
-                cycleedges = cycleedges.reshape(-1)
+        if (ncycles >= minncy) & (powerratio > 0):
 
-                actmat_,_, = np.histogram(spktimes,cycleedges)
+            meanfreq = ncycles/(len(eventsamples)/1250)
 
-                actmat[uniti,:] = actmat_[np.arange(0,len(cycleedges),2)] 
-                
-        return actmat
+            aux = np.array([onset, cx, offset]).reshape(1, 3)
+            timestamps = np.concatenate((timestamps, aux))
 
-def xcorr(a,b,maxlag,step=1):
-    
-        import pandas as pd
-        
-        datax = pd.Series(b)
-        datay = pd.Series(a)
-    
-        lags = np.arange(-maxlag,maxlag,step)
-        output = np.zeros(len(lags))
-        lagi = -1
-        for lag in lags:
-                lagi += 1
-                output[lagi] = datax.corr(datay.shift(lag))
-                
-        return output,lags
-    
-def detect_OscBursts(lfp,minncy = 8, band=[20,30], surroundBand = [15,60], thrs_ = 1.5, sr=sr):
+            features['peakamp'] = np.concatenate(
+                (features['peakamp'], [lfpf_env[cx]]))
+            features['ncycles'] = np.concatenate(
+                (features['ncycles'], [ncycles]))
+            features['meanfreq'] = np.concatenate(
+                (features['meanfreq'], [meanfreq]))
+            features['dur'] = np.concatenate(
+                (features['dur'], [len(eventsamples)/1250.]))
+            features['power'] = np.concatenate((features['power'], [power]))
+            features['surpower'] = np.concatenate(
+                (features['surpower'], [surpower]))
+            features['powerratio'] = np.concatenate(
+                (features['powerratio'], [powerratio]))
 
-        lfpf = bandpass(lfp,band[0],band[1])
+        ##########
 
-        lfpf_hil = runHilbert(lfpf)
-        lfpf_env = np.abs(lfpf_hil)
-        lfpf_ph = np.angle(lfpf_hil)
-        
-        lfpf_surround = bandpass(lfp,surroundBand[0],surroundBand[1])
-        lfpf_surround_env = np.abs(runHilbert(lfpf_surround))
+    _, uniqueis = np.unique(
+        timestamps[:, np.array([0, 2])], axis=0, return_index=True)
 
-        candidates = detect_peaks(lfpf_env,show=False,mph=0,mpd=int(minncy*50*sr/1000)) 
+    timestamps = timestamps[uniqueis, :]
 
-        thrs = thrs_*np.diff(np.percentile(lfpf_env[candidates],[25,75]))\
-                                            +np.percentile(lfpf_env[candidates],75)
-        thrsWin = thrs/2
+    for key in features.keys():
+        features[key] = features[key][uniqueis]
 
-        candidates = candidates[lfpf_env[candidates]>thrs]
+    peaks = getPeaksWithinWindows(lfpf_env, timestamps[:, np.array([0, 2])])
+    timestamps[:, 1] = peaks
 
-        timestamps = np.array([],dtype=int).reshape(0,3)
-        features = {'peakamp': np.array([]),\
-                    'ncycles': np.array([],dtype=int),\
-                    'meanfreq': np.array([]),\
-                    'dur': np.array([]),\
-                    'power': np.array([]),\
-                    'surpower': np.array([]),\
-                    'powerratio': np.array([])}   
-        
-        par = {'thrs': thrs,\
-                    'thrsWin': thrsWin,\
-                    'lfpf': lfpf}   
-        
-        for (ci,cx) in enumerate(candidates):
-
-                if np.sum(lfpf_env[:cx]<thrsWin)>0:
-                        onset = np.max(np.where(lfpf_env[:cx]<thrsWin)[0])
-                else:
-                        onset = 0
-
-                if np.sum(lfpf_env[cx:]<thrsWin)>0:
-                        offset = cx + np.min(np.where(lfpf_env[cx:]<thrsWin)[0])
-                else:
-                        offset = len(lfpf_env)-1
-
-                eventwin = np.array([onset,offset])
-                eventsamples = np.arange(eventwin.min(),eventwin.max()+1)
-
-                phase = np.copy(np.unwrap(lfpf_ph[eventsamples]))
-                phase -= phase[0]
-                ncycles = phase[-1]/(2*np.pi)
-
-                ampratio = pow(np.mean(lfpf_env[eventsamples]),2)\
-                            /pow(np.mean(lfpf_surround_env[eventsamples]),2)
-                    
-                power = pow(np.sum(lfpf_env[eventsamples]),2)/1250.
-                surpower = pow(np.sum(lfpf_surround_env[eventsamples]),2)/1250.
-                
-                powerratio = power/surpower
-                    
-                if (ncycles>=minncy)&(powerratio>0):
-
-                        meanfreq = ncycles/(len(eventsamples)/1250)
-
-                        aux = np.array([onset,cx,offset]).reshape(1,3)
-                        timestamps = np.concatenate((timestamps,aux))
-                        
-                        features['peakamp'] = np.concatenate((features['peakamp'],[lfpf_env[cx]]))
-                        features['ncycles'] = np.concatenate((features['ncycles'],[ncycles]))
-                        features['meanfreq'] = np.concatenate((features['meanfreq'],[meanfreq]))
-                        features['dur'] = np.concatenate((features['dur'],[len(eventsamples)/1250.]))
-                        features['power'] = np.concatenate((features['power'],[power]))
-                        features['surpower'] = np.concatenate((features['surpower'],[surpower]))
-                        features['powerratio'] = np.concatenate((features['powerratio'],[powerratio]))
-
-                ##########
-
-        _,uniqueis = np.unique(timestamps[:,np.array([0,2])],axis=0,return_index=True)
-        
-        timestamps = timestamps[uniqueis,:]
-
-        for key in features.keys():
-                features[key] = features[key][uniqueis]
-                
-        peaks = getPeaksWithinWindows(lfpf_env,timestamps[:,np.array([0,2])])
-        timestamps[:,1] = peaks
-                
-        return timestamps,features,par
-
-def wvfilt(signal,mfreq,sr=1250.):
-
-        # computing the length of the wavelet for the desired frequency
-        wavelen = int(np.round(10.*sr/mfreq))
-
-        # constructs morlet wavelet with given parameters
-        wave = sig.morlet(wavelen,w=5,s=1,complete=True)
-
-        # cutting borders
-        cumulativeEnvelope = np.cumsum(np.abs(wave))/np.sum(np.abs(wave))
-        Cut1 = next(i for (i,val) in enumerate(cumulativeEnvelope[::-1]) if val<=(1./2000)) 
-        Cut2 = Cut1
-        Cut1 = len(cumulativeEnvelope)-Cut1-1
-        wave = wave[range(Cut1,Cut2)]
-
-        # normalizes wavelet energy
-        wave = wave/(.5*sum(abs(wave)))
-        
-        if (len(wave))>len(signal):
-                print('ERROR: input signal needs at least '+str(len(wave))+\
-                                                            ' time points for '+str(mfreq)+\
-                                                                      'Hz-wavelet convolution')
-                return None
-                
-        # convolving signal with wavelet
-        fsignal = np.convolve(signal,wave,'same')
-        return fsignal
+    return timestamps, features, par
 
 
-def wvSpect(signal,freqs,tfrout=False,runSpectrogram=True,runPhases=False,s=1,w=5,sr=1250.):
+def wvfilt(signal, mfreq, sr=1250.):
 
-        freqs = np.array(freqs).reshape(-1,1)
-        tfr = np.zeros((np.size(freqs),len(signal)),dtype=complex) 
-        for (fi,f) in enumerate(freqs):
-                f = float(f)
-                tfr[fi,:] = wvfilt(signal,f,sr) 
+    # computing the length of the wavelet for the desired frequency
+    wavelen = int(np.round(10.*sr/mfreq))
 
-        if runSpectrogram:
-                output = (np.abs(tfr).squeeze(),)
-        if tfrout:
-                output += (tfr.squeeze(),)
-        if runPhases:
-                output += (np.angle(tfr).squeeze(),)
+    # constructs morlet wavelet with given parameters
+    wave = sig.morlet(wavelen, w=5, s=1, complete=True)
 
-        return output[0]
+    # cutting borders
+    cumulativeEnvelope = np.cumsum(np.abs(wave))/np.sum(np.abs(wave))
+    Cut1 = next(i for (i, val) in enumerate(
+        cumulativeEnvelope[::-1]) if val <= (1./2000))
+    Cut2 = Cut1
+    Cut1 = len(cumulativeEnvelope)-Cut1-1
+    wave = wave[range(Cut1, Cut2)]
 
-def runHilbert(signal,axis=-1):
+    # normalizes wavelet energy
+    wave = wave/(.5*sum(abs(wave)))
 
-	ndim = len(np.shape(signal))
-	if ndim == 1:
-		signal = signal[None,:]
-	signallen = np.size(signal,1)
+    if (len(wave)) > len(signal):
+        print('ERROR: input signal needs at least '+str(len(wave)) +
+              ' time points for '+str(mfreq) +
+              'Hz-wavelet convolution')
+        return None
 
-	hilbert = sig.hilbert(signal,next_power_of_2(signallen),axis=axis)[:,range(signallen)]
-	hilbert = hilbert.squeeze()
+    # convolving signal with wavelet
+    fsignal = np.convolve(signal, wave, 'same')
+    return fsignal
 
-	return hilbert
 
-def getPeaksWithinWindows(signal,Edges):
+def wvSpect(signal, freqs, tfrout=False, runSpectrogram=True, runPhases=False, s=1, w=5, sr=1250.):
 
-	Edges = Edges[Edges[:,-1]<len(signal),:]
-	nWindows = np.size(Edges,0)
-	Peaks = np.zeros(nWindows,dtype=int)
-	for wi in range(nWindows):
-		samples = range(Edges[wi,0],Edges[wi,-1]) 
-		Peaks[wi] = samples[np.argmax(signal[samples])]
-        
-	return Peaks
+    freqs = np.array(freqs).reshape(-1, 1)
+    tfr = np.zeros((np.size(freqs), len(signal)), dtype=complex)
+    for (fi, f) in enumerate(freqs):
+        f = float(f)
+        tfr[fi, :] = wvfilt(signal, f, sr)
+
+    if runSpectrogram:
+        output = (np.abs(tfr).squeeze(),)
+    if tfrout:
+        output += (tfr.squeeze(),)
+    if runPhases:
+        output += (np.angle(tfr).squeeze(),)
+
+    return output[0]
+
+
+def runHilbert(signal, axis=-1):
+
+    ndim = len(np.shape(signal))
+    if ndim == 1:
+        signal = signal[None, :]
+    signallen = np.size(signal, 1)
+
+    hilbert = sig.hilbert(signal, next_power_of_2(
+        signallen), axis=axis)[:, range(signallen)]
+    hilbert = hilbert.squeeze()
+
+    return hilbert
+
+
+def getPeaksWithinWindows(signal, Edges):
+
+    Edges = Edges[Edges[:, -1] < len(signal), :]
+    nWindows = np.size(Edges, 0)
+    Peaks = np.zeros(nWindows, dtype=int)
+    for wi in range(nWindows):
+        samples = range(Edges[wi, 0], Edges[wi, -1])
+        Peaks[wi] = samples[np.argmax(signal[samples])]
+
+    return Peaks
+
 
 def getSamplesWithinEdges(Edges):
 
-	if len(np.shape(Edges))<2:
-       		Edges = Edges.reshape(1,2)
-	samples = np.array([],dtype=int)
-	NofCycles = len(Edges)    
-	for cyclei in range(NofCycles):
-		cyclesamplesAux = np.arange(Edges[cyclei,0],Edges[cyclei,1],dtype=int)
-		samples = np.hstack((samples,cyclesamplesAux))
-	samples = np.unique(samples)
+    if len(np.shape(Edges)) < 2:
+        Edges = Edges.reshape(1, 2)
+    samples = np.array([], dtype=int)
+    NofCycles = len(Edges)
+    for cyclei in range(NofCycles):
+        cyclesamplesAux = np.arange(
+            Edges[cyclei, 0], Edges[cyclei, 1], dtype=int)
+        samples = np.hstack((samples, cyclesamplesAux))
+    samples = np.unique(samples)
 
-	return samples
+    return samples
 
 ###############################################################
 ## TRACKING AND PLACE CELL ANALYSES ###########################
 
-def linearInterpolate(x):
-    
-        x = np.array(x)
 
-        validnumIdxs = np.where(~np.isnan(x))[0]
-        validExtrema = [np.min(validnumIdxs),np.max(validnumIdxs)]
+def linearInterpolate(x):
+
+    x = np.array(x)
+
+    validnumIdxs = np.where(~np.isnan(x))[0]
+    validExtrema = [np.min(validnumIdxs), np.max(validnumIdxs)]
+
+    nNANs = np.sum(np.isnan(x[validExtrema[0]:(validExtrema[1]+1)]))
+
+    while nNANs > 0:
+
+        nanIdx = np.where(
+            np.isnan(x[validExtrema[0]:(validExtrema[1]+1)]))[0][0]
+        nanIdx += validExtrema[0]
+
+        idx1 = np.max(np.where((range(len(x)) < nanIdx)
+                               & (~(np.isnan(x))))[0])
+        idx2 = np.min(np.where((range(len(x)) > nanIdx)
+                               & (~(np.isnan(x))))[0])
+
+        slope = np.diff(x[[idx1, idx2]])/(idx1-idx2)
+
+        x[(idx1+1):idx2] = x[idx1]-([1+np.arange(len(x[(idx1+1):idx2]))]*slope)
 
         nNANs = np.sum(np.isnan(x[validExtrema[0]:(validExtrema[1]+1)]))
 
-        while nNANs>0:
+    return x
 
-                nanIdx = np.where(np.isnan(x[validExtrema[0]:(validExtrema[1]+1)]))[0][0]
-                nanIdx += validExtrema[0]
-
-                idx1 = np.max(np.where((range(len(x))<nanIdx)\
-                                       &(~(np.isnan(x))))[0])
-                idx2 = np.min(np.where((range(len(x))>nanIdx)\
-                                       &(~(np.isnan(x))))[0])
-
-                slope = np.diff(x[[idx1,idx2]])/(idx1-idx2)
-
-                x[(idx1+1):idx2] = x[idx1]-([1+np.arange(len(x[(idx1+1):idx2]))]*slope)
-
-                nNANs = np.sum(np.isnan(x[validExtrema[0]:(validExtrema[1]+1)]))
-
-        return x
 
 trackingSR_Hz = 20000./512
 
-def load_tracking(b, smoothing=1, ext = 'whl'):
-        '''Load position data (whl)'''
-        trk = pd.read_csv(b+'.' +ext, sep='\s+', header=None).values
-        trk[trk<=0] = np.nan
-        if smoothing is not None:
-                trk = ndimage.filters.gaussian_filter1d(trk, smoothing, axis=0)
-        return pd.DataFrame(trk, columns=['x','y'])
-    
-def loadTracking(bsnm,smoo=2,mazelen=-1.,maxspeed=-1, ext = 'whl',pixelsPerCm=-1):
-    
-        tracking = load_tracking(bsnm,smoo,ext)
-        #jumpypoints = detectJumpyPoints(bsnm,trackingSR_Hz,mazelen,maxspeed,ext)
-        jumpypoints = detectJumpyPoints2(tracking)
-        
-        tracking['x'][(tracking['x']<=0)|jumpypoints] = np.nan
-        tracking['y'][(tracking['y']<=0)|jumpypoints] = np.nan
 
-        if pixelsPerCm>0:
-                1
-        elif mazelen>0:
-                nPixels = np.mean([np.max(tracking['x'])-np.min(tracking['x']),\
-                                         np.max(tracking['y'])-np.min(tracking['y'])])
-                pixelsPerCm = nPixels/mazelen
-        else:
-                pixelsPerCm = 1
+def load_tracking(b, smoothing=1, ext='whl'):
+    '''Load position data (whl)'''
+    trk = pd.read_csv(b+'.' + ext, sep='\s+', header=None).values
+    trk[trk <= 0] = np.nan
+    if smoothing is not None:
+        trk = ndimage.filters.gaussian_filter1d(trk, smoothing, axis=0)
+    return pd.DataFrame(trk, columns=['x', 'y'])
 
-        if np.mean(np.isnan(tracking['x']))<1:
-                tracking['X'] = linearInterpolate(tracking['x'])
-                tracking['Y'] = linearInterpolate(tracking['y'])
-        else:
-                tracking['X'] = tracking['x']
-                tracking['Y'] = tracking['y']
-                
-        #jumpypoints = detectJumpyPoints2(tracking,False)
-        #tracking['X'][(tracking['X']<=0)|jumpypoints] = np.nan
-        #tracking['Y'][(tracking['Y']<=0)|jumpypoints] = np.nan
 
-        velx = np.diff(tracking['X'])
-        vely = np.diff(tracking['Y'])
-        speed = np.concatenate((np.array([0]),np.sqrt(pow(velx,2)+pow(vely,2))))
-        speed /= pixelsPerCm
-        speed *= trackingSR_Hz
-        
-        trackingTime = np.arange(0,len(tracking['x']))/trackingSR_Hz
-        tracking['speed'] = speed
-        tracking['time'] = trackingTime
+def loadTracking(bsnm, smoo=2, mazelen=-1., maxspeed=-1, ext='whl', pixelsPerCm=-1):
 
-        return tracking
-    
-def detectJumpyPoints2(tracking,rawinput=True):
-    
-        if rawinput:
-                x = tracking['x'].values.copy()
-                y = tracking['y'].values.copy()
-        else:
-                x = tracking['X'].values.copy()
-                y = tracking['Y'].values.copy()
-                
-        flag = True
-        cnt = 0
-        jumpypoints = np.array([],dtype=int)
-        while flag:
-                cnt += 1
+    tracking = load_tracking(bsnm, smoo, ext)
+    #jumpypoints = detectJumpyPoints(bsnm,trackingSR_Hz,mazelen,maxspeed,ext)
+    jumpypoints = detectJumpyPoints2(tracking)
 
-                speedx = np.diff(x)
-                speedy = np.diff(y)
-                speed = np.concatenate((np.array([np.nan]),np.sqrt(pow(speedx,2)+pow(speedy,2))))
+    tracking['x'][(tracking['x'] <= 0) | jumpypoints] = np.nan
+    tracking['y'][(tracking['y'] <= 0) | jumpypoints] = np.nan
 
-                validis = np.where(~np.isnan(speed))[0]
+    if pixelsPerCm > 0:
+        1
+    elif mazelen > 0:
+        nPixels = np.mean([np.max(tracking['x'])-np.min(tracking['x']),
+                           np.max(tracking['y'])-np.min(tracking['y'])])
+        pixelsPerCm = nPixels/mazelen
+    else:
+        pixelsPerCm = 1
 
-                thrs = np.nanpercentile(speed,75)+np.diff(np.nanpercentile(speed,[25,75]))*4
-                outis_ = np.where(speed[validis]>thrs)[0]
-                if np.size(outis_)==0:
-                        flag = False
-                        break
+    if np.mean(np.isnan(tracking['x'])) < 1:
+        tracking['X'] = linearInterpolate(tracking['x'])
+        tracking['Y'] = linearInterpolate(tracking['y'])
+    else:
+        tracking['X'] = tracking['x']
+        tracking['Y'] = tracking['y']
 
-                is_ = np.array([],dtype=int)
-                for shift in np.arange(-3,4):
-                        aux = outis_+shift
-                        aux = aux[aux<len(validis)]
-                        is_ = np.concatenate((is_,validis[aux]))
-                is_ = np.sort(np.unique(is_))
+    #jumpypoints = detectJumpyPoints2(tracking,False)
+    #tracking['X'][(tracking['X']<=0)|jumpypoints] = np.nan
+    #tracking['Y'][(tracking['Y']<=0)|jumpypoints] = np.nan
 
-                jumpypoints = np.concatenate((jumpypoints,is_))
+    velx = np.diff(tracking['X'])
+    vely = np.diff(tracking['Y'])
+    speed = np.concatenate((np.array([0]), np.sqrt(pow(velx, 2)+pow(vely, 2))))
+    speed /= pixelsPerCm
+    speed *= trackingSR_Hz
 
-                x[jumpypoints] = np.nan
-                y[jumpypoints] = np.nan
+    trackingTime = np.arange(0, len(tracking['x']))/trackingSR_Hz
+    tracking['speed'] = speed
+    tracking['time'] = trackingTime
 
-                if cnt>5:
-                        flag = False
-                        break
+    return tracking
 
-        jumpypoints_ = np.zeros(len(x),dtype=bool)
-        jumpypoints_[jumpypoints] = True
-        return jumpypoints_
-    
-def detectJumpyPoints(bsnm,trackingSR_Hz,mazelen=-1,maxspeed=-1, ext='whl'):
 
-        tracking = load_tracking(bsnm,.1,ext)
-        
-        if mazelen>0:
-                nPixels = np.mean([np.max(tracking['x'])-np.min(tracking['x']),\
-                                         np.max(tracking['y'])-np.min(tracking['y'])])
-                pixelsPerCm = nPixels/mazelen
-        else:
-                pixelsPerCm = 1
-        
-        velx = np.diff(tracking['x'])
-        vely = np.diff(tracking['y'])
-        speedRaw = np.concatenate((np.array([0]),np.sqrt(pow(velx,2)+pow(vely,2))))
-        speedRaw /= pixelsPerCm
-        speedRaw *= trackingSR_Hz
-        speedRaw[np.isnan(speedRaw)] = -1
+def detectJumpyPoints2(tracking, rawinput=True):
 
-        speedRaw_ = speedRaw[speedRaw>0]
-        if (np.size(speedRaw_)>10)&(maxspeed <= 0):
-                maxspeed = float(np.diff(np.percentile(speedRaw_,[25,75]))*10\
-                                                     +np.percentile(speedRaw_,75))
-        elif (np.size(speedRaw_)<10)&(maxspeed <= 0):
-                maxspeed = np.inf
-        
-        ids = np.where(speedRaw>maxspeed)[0]
-        
-        jumpypoints = np.zeros(len(speedRaw),dtype=bool)
-        for i in [-1,0,1]:
-                jumpypoints[ids+i] = True
-                
-        return jumpypoints
+    if rawinput:
+        x = tracking['x'].values.copy()
+        y = tracking['y'].values.copy()
+    else:
+        x = tracking['X'].values.copy()
+        y = tracking['Y'].values.copy()
 
-def MatrixGaussianSmooth(Matrix,GaussianStd,GaussianNPoints=0,NormOperator=np.sum):
+    flag = True
+    cnt = 0
+    jumpypoints = np.array([], dtype=int)
+    while flag:
+        cnt += 1
 
-	# Matrix: matrix to smooth (rows will be smoothed)
-	# GaussiaStd: standard deviation of Gaussian kernell (unit has to be number of samples)
-	# GaussianNPoints: number of points of kernell
-	# NormOperator: # defines how to normalise kernell
+        speedx = np.diff(x)
+        speedy = np.diff(y)
+        speed = np.concatenate(
+            (np.array([np.nan]), np.sqrt(pow(speedx, 2)+pow(speedy, 2))))
 
-	if GaussianNPoints<GaussianStd:
-		GaussianNPoints = int(4*GaussianStd)
+        validis = np.where(~np.isnan(speed))[0]
 
-	GaussianKernel = sig.get_window(('gaussian',GaussianStd),GaussianNPoints)
-	GaussianKernel = GaussianKernel/NormOperator(GaussianKernel)
+        thrs = np.nanpercentile(speed, 75) + \
+            np.diff(np.nanpercentile(speed, [25, 75]))*4
+        outis_ = np.where(speed[validis] > thrs)[0]
+        if np.size(outis_) == 0:
+            flag = False
+            break
 
-	if len(np.shape(Matrix))<2:
-		SmoothedMatrix = np.convolve(Matrix,GaussianKernel,'same')
-	else:
-	    	SmoothedMatrix = np.ones(np.shape(Matrix))*np.nan
-	    	for row_i in range(len(Matrix)):
-	    		SmoothedMatrix[row_i,:] = \
-		    		np.convolve(Matrix[row_i,:],GaussianKernel,'same')
+        is_ = np.array([], dtype=int)
+        for shift in np.arange(-3, 4):
+            aux = outis_+shift
+            aux = aux[aux < len(validis)]
+            is_ = np.concatenate((is_, validis[aux]))
+        is_ = np.sort(np.unique(is_))
 
-	return SmoothedMatrix,GaussianKernel
-    
-def circularSmooth(matrix,gaussianStd,nPoints,NormOperator=np.sum):
-    
+        jumpypoints = np.concatenate((jumpypoints, is_))
+
+        x[jumpypoints] = np.nan
+        y[jumpypoints] = np.nan
+
+        if cnt > 5:
+            flag = False
+            break
+
+    jumpypoints_ = np.zeros(len(x), dtype=bool)
+    jumpypoints_[jumpypoints] = True
+    return jumpypoints_
+
+
+def detectJumpyPoints(bsnm, trackingSR_Hz, mazelen=-1, maxspeed=-1, ext='whl'):
+
+    tracking = load_tracking(bsnm, .1, ext)
+
+    if mazelen > 0:
+        nPixels = np.mean([np.max(tracking['x'])-np.min(tracking['x']),
+                           np.max(tracking['y'])-np.min(tracking['y'])])
+        pixelsPerCm = nPixels/mazelen
+    else:
+        pixelsPerCm = 1
+
+    velx = np.diff(tracking['x'])
+    vely = np.diff(tracking['y'])
+    speedRaw = np.concatenate(
+        (np.array([0]), np.sqrt(pow(velx, 2)+pow(vely, 2))))
+    speedRaw /= pixelsPerCm
+    speedRaw *= trackingSR_Hz
+    speedRaw[np.isnan(speedRaw)] = -1
+
+    speedRaw_ = speedRaw[speedRaw > 0]
+    if (np.size(speedRaw_) > 10) & (maxspeed <= 0):
+        maxspeed = float(np.diff(np.percentile(speedRaw_, [25, 75]))*10
+                         + np.percentile(speedRaw_, 75))
+    elif (np.size(speedRaw_) < 10) & (maxspeed <= 0):
+        maxspeed = np.inf
+
+    ids = np.where(speedRaw > maxspeed)[0]
+
+    jumpypoints = np.zeros(len(speedRaw), dtype=bool)
+    for i in [-1, 0, 1]:
+        jumpypoints[ids+i] = True
+
+    return jumpypoints
+
+
+def MatrixGaussianSmooth(Matrix, GaussianStd, GaussianNPoints=0, NormOperator=np.sum):
+
+    # Matrix: matrix to smooth (rows will be smoothed)
+    # GaussiaStd: standard deviation of Gaussian kernell (unit has to be number of samples)
+    # GaussianNPoints: number of points of kernell
+    # NormOperator: # defines how to normalise kernell
+
+    if GaussianNPoints < GaussianStd:
+        GaussianNPoints = int(4*GaussianStd)
+
+    GaussianKernel = sig.get_window(('gaussian', GaussianStd), GaussianNPoints)
+    GaussianKernel = GaussianKernel/NormOperator(GaussianKernel)
+
+    if len(np.shape(Matrix)) < 2:
+        SmoothedMatrix = np.convolve(Matrix, GaussianKernel, 'same')
+    else:
+        SmoothedMatrix = np.ones(np.shape(Matrix))*np.nan
+        for row_i in range(len(Matrix)):
+            SmoothedMatrix[row_i, :] = \
+                np.convolve(Matrix[row_i, :], GaussianKernel, 'same')
+
+    return SmoothedMatrix, GaussianKernel
+
+
+def circularSmooth(matrix, gaussianStd, nPoints, NormOperator=np.sum):
+
     originalLen = np.shape(matrix)[-1]
-    matrix = np.hstack((matrix,matrix,matrix,matrix,matrix))
-    matrix,_ = MatrixGaussianSmooth(matrix,gaussianStd,nPoints,NormOperator=NormOperator)
-    if len(np.shape(matrix))>1:
-        matrix = matrix[:,1+originalLen:1+2*originalLen]
+    matrix = np.hstack((matrix, matrix, matrix, matrix, matrix))
+    matrix, _ = MatrixGaussianSmooth(
+        matrix, gaussianStd, nPoints, NormOperator=NormOperator)
+    if len(np.shape(matrix)) > 1:
+        matrix = matrix[:, 1+originalLen:1+2*originalLen]
     else:
         matrix = matrix[1+originalLen:1+2*originalLen]
-    
+
     return matrix
 
-def runthetaz(array,cycles,sm=0):
-    
-        'z-scores spike trains (1/1.25 bins) for theta samples only'
-    
-        thetasamples = getSamplesWithinEdges(cycles[:,np.array([0,4])])
 
-        mean = np.mean(array[:,thetasamples],axis=1)
-        std = np.std(array[:,thetasamples],axis=1)
-        
-        ncols = np.size(array,1)
-        zarray = array - np.repeat(mean,ncols).reshape(len(mean),ncols)
-        zarray /= np.repeat(std,ncols).reshape(len(mean),ncols)
+def runthetaz(array, cycles, sm=0):
+    'z-scores spike trains (1/1.25 bins) for theta samples only'
 
-        if sm>0:
-                zarray,_ = MatrixGaussianSmooth(zarray,sm)
-                
-        return zarray
+    thetasamples = getSamplesWithinEdges(cycles[:, np.array([0, 4])])
+
+    mean = np.mean(array[:, thetasamples], axis=1)
+    std = np.std(array[:, thetasamples], axis=1)
+
+    ncols = np.size(array, 1)
+    zarray = array - np.repeat(mean, ncols).reshape(len(mean), ncols)
+    zarray /= np.repeat(std, ncols).reshape(len(mean), ncols)
+
+    if sm > 0:
+        zarray, _ = MatrixGaussianSmooth(zarray, sm)
+
+    return zarray
+
 
 def printTime(prefix):
-	print(prefix+time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
-	sys.stdout.flush()
+    print(prefix+time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+    sys.stdout.flush()
+
 
 def next_power_of_2(n):
+    '''Return next power of 2 greater than or equal to n'''
+    n -= 1                 # short for "n = n - 1"
+    shift = 1
+    while (n+1) & n:       # the operator "&" is a bitwise operator: it compares every bit of (n+1) and n, and returns those bits that are present in both
+        n |= n >> shift
+        # the operator "<<" means "left bitwise shift": this comes down to "shift = shift**2"
+        shift <<= 1
+    return n + 1
 
-	'''Return next power of 2 greater than or equal to n'''
-	n -= 1                 # short for "n = n - 1"
-	shift = 1
-	while (n+1) & n:       # the operator "&" is a bitwise operator: it compares every bit of (n+1) and n, and returns those bits that are present in both
-		n |= n >> shift    
-		shift <<= 1        # the operator "<<" means "left bitwise shift": this comes down to "shift = shift**2"
-	return n + 1
 
-def runMPs(ps,queue=None):
-    
-        import multiprocessing as mp
+def runMPs(ps, queue=None):
 
-        for p in ps:
-                p.start()
-        if queue is not None:
-                dataout = [queue.get() for p in ps]
-        for p in ps:
-                p.join()
+    import multiprocessing as mp
 
-        if queue is not None:
-                return dataout
+    for p in ps:
+        p.start()
+    if queue is not None:
+        dataout = [queue.get() for p in ps]
+    for p in ps:
+        p.join()
+
+    if queue is not None:
+        return dataout
+
 
 if False:
 
-        import os
-        import psutil
+    import os
+    import psutil
 
-        process = psutil.Process(os.getpid())
-        print(process.memory_info().rss)
+    process = psutil.Process(os.getpid())
+    print(process.memory_info().rss)

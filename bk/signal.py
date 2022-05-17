@@ -40,6 +40,6 @@ def wavelet_spectrogram(lfp, fmin, fmax, nfreq):
     t = lfp.as_units('s').index.values
 
     f_wv = pow(2, np.linspace(np.log2(fmin), np.log2(fmax), nfreq))
-    output = vbf.wvSpect(lfp.values, f_wv)[0]
+    output = vbf.wvSpect(lfp.values, f_wv)#[0]
 
     return t, f_wv, output
