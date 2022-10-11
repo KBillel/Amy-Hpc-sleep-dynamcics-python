@@ -3,7 +3,6 @@ import neuroseries as nts
 from tqdm import tqdm
 import os
 import scipy.stats
-import bk.loadold
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
     """

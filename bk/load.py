@@ -1,25 +1,30 @@
-from cmath import isfinite
-from threading import local
-import numpy as np
-import pandas as pd
-import neuroseries as nts
-import scipy.io
+import os
+import pickle
+import re
 import sys
 import time
-import pickle
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from IPython.display import clear_output
 import xml.etree.ElementTree as ET
-import os
+from cmath import isfinite
+from threading import local
+
+import matplotlib.pyplot as plt
+import neuroseries as nts
+import numpy as np
+import pandas as pd
+import scipy.io
+from IPython.display import clear_output
+from tqdm import tqdm
+
 import bk.compute
-import re
 
 global session, path, rat, day, n_channels
 
 
-def sessions():
-    return pd.read_csv("/home/billel/Data/GG-Dataset/relative_session_indexing.csv", sep=",")
+def sessions(base_folder = None):
+    if base_folder is None:
+        return pd.read_csv(base+"relative_session_indexing.csv", sep=",")
+    else:
+        return pd.read_csv(base_folder)
 
 
 def current_session(path_local="Z:\Rat08\Rat08-20130713"):
@@ -51,7 +56,7 @@ def current_session(path_local="Z:\Rat08\Rat08-20130713"):
 
 
 def current_session_linux(
-    base_folder="/home/billel/Data/GG-Dataset/", local_path="Rat08/Rat08-20130713",byrat = None,byday = None
+    base_folder="/mnt/electrophy/Gabrielle/GG-Dataset-Light/", local_path="Rat08/Rat08-20130713",byrat = None,byday = None
 ):
     # Author : BK 08/20
     # Input Path to the session to load
@@ -77,8 +82,9 @@ def current_session_linux(
     session = local_path.split("/")[-1]
     path = os.path.join(base, local_path)
     os.chdir(path)
-
-    n_channels = xml()["nChannels"]
+    
+    if os.path.exists(session+'xml'): 
+        n_channels = xml()["nChannels"]
 
     print("Rat : " + str(int(rat)) + " on day : " + str(int(day)))
     print("Working with session " + session + " @ " + path)
@@ -101,7 +107,7 @@ def xml():
     return xmlInfo
 
 
-def batch(func, *args, local_base='/home/billel/Data/GG-Dataset/', verbose=False, **kwargs):
+def batch(func, *args, local_base='/mnt/electrophy/Gabrielle/GG-Dataset-Light', verbose=False, **kwargs):
 
     # Author : BK
     # Date : 08/20
@@ -117,6 +123,7 @@ def batch(func, *args, local_base='/home/billel/Data/GG-Dataset/', verbose=False
 
     error = []
     output_dict = {}
+    metadata_all = pd.DataFrame()
     for path in tqdm(session_index["Path"]):
 
         session = path.split("/")[1]
@@ -126,6 +133,15 @@ def batch(func, *args, local_base='/home/billel/Data/GG-Dataset/', verbose=False
             output = func(local_base,
                           os.path.join(path), *args, **kwargs)
             output_dict.update({session: output})
+
+
+            metadata = pd.DataFrame({
+                'Rat':rat,
+                'Day':day,
+            },index = [session])
+
+            metadata_all = pd.concat((metadata_all,metadata))
+
             if not verbose:
                 clear_output()
         except:
@@ -140,11 +156,38 @@ def batch(func, *args, local_base='/home/billel/Data/GG-Dataset/', verbose=False
         print(error)
         print(len(error) / len(session_index["Path"]) * 100, "%")
 
-    return output_dict
+    return output_dict, metadata_all
 
 
-def get_raw_data_directory(raw_data_directory="\\\AGNODICE\IcyBox"):
-    return raw_data_directory
+def intervals(name):
+    if not name.endswith('.csv'):
+        name = name+'.csv'
+
+    df = pd.read_csv(f'Intervals/{name}')
+    if len(np.unique(df['state'])) == 1:
+        return(nts.IntervalSet(df['start'],df['end']))
+    else:
+        intervals = {}
+        for state in np.unique(df['state']):
+            filt = df['state'] == state
+            intervals.update({state:nts.IntervalSet(df[filt]['start'],df['end'][filt])})
+        return intervals
+
+def analysis(name):
+    if not name.endswith('.npy'):
+        name = name+'.npy'
+    if os.path.exists(f'Analysis/{name}'):
+        data = np.load(f'Analysis/{name}',allow_pickle=True)
+        if data.shape:
+            return data
+        else:
+            return data.ravel()[0]
+    else:
+        print(f'Can\'t find {name} in the analysis folder')
+        return False
+
+def computed_intervals():
+    return os.listdir('Intervals/')
 
 
 def get_session_path(session_name):
@@ -281,6 +324,9 @@ def pos(save=False):
         t=pos_clean[:, 0], d=pos_clean[:, 1:], columns=["x", "y"], time_units="s"
     )
 
+def pos_csv():
+    pos = pd.read_csv(f'{session}-pos.csv')
+    return nts.TsdFrame(t=pos['Time (us)'].values, d=pos.values[:,1:3], columns=["x", "y"])
 
 def state_vector():
     names = {"wake": 1, "drowsy": 2, "nrem": 3, "intermediate": 4, "rem": 5}
@@ -293,7 +339,7 @@ def state_vector():
     return states
 
 
-def states():
+def states(new_names = False):
     # BK : 17/09/2020
     # Return a dict with variable from States.
     #     if session_path == 0 : session_path = get_session_path(session_name)
@@ -315,7 +361,9 @@ def states():
     sleep = bk.load.sleep()
     wake_homecage = states_['wake'].intersect(sleep).drop_short_intervals(1)
     states_.update({'wake_homecage': wake_homecage})
-
+    if new_names:
+        states_['NREM'] = states_.pop('sws')
+        states_['REM'] = states_.pop('Rem')
     return states_
 
 
@@ -393,6 +441,7 @@ def laps():
 
 def spikes():
     return loadSpikeData(path)
+
 
 
 def loadSpikeData(path, index=None, fs=20000):
@@ -520,6 +569,26 @@ def loadSpikeData(path, index=None, fs=20000):
     )  # idx_clu is returned in order to keep indexing consistent with Matlab code.
 
 
+
+
+
+def metadata_with_side(metadata):
+    shanks_sides = pd.read_csv(f'{bk.load.base}/All-Rats/Shanks_sides.csv')
+    shanks_sides = shanks_sides[shanks_sides.Rat == bk.load.rat]
+
+    left_shanks = [int(n) for n in shanks_sides[shanks_sides.Side == 'left'].Shanks.iloc[0].split(',')]
+    right_shanks = [int(n) for n in shanks_sides[shanks_sides.Side == 'right'].Shanks.iloc[0].split(',')]
+
+    for s in np.unique(metadata.Shank):
+        if s in left_shanks:
+            metadata.loc[metadata.Shank == s, 'Side'] = 'left'
+        elif s in right_shanks:
+            metadata.loc[metadata.Shank == s, 'Side'] = 'right'
+        else:
+            metadata.loc[metadata.Shank == s, 'Side']= 'Null'
+    return metadata
+
+
 def loadLFP(path, n_channels=90, channel=64, frequency=1250.0, precision="int16"):
     """
     LEGACY
@@ -634,6 +703,7 @@ def lfp_in_intervals(channel, intervals):
         start = np.round(start, decimals=1)
         stop = np.round(stop, decimals=1)
         lfp = bk.load.lfp(channel, start, stop)
+        if lfp is None: return None
         t = np.append(t, lfp.index)
         lfps = np.append(lfps, lfp.values)
 
@@ -751,3 +821,5 @@ def video_path(local_path):
 def digitalin_path(local_path):
     digitalin = os.path.join(local_path,'digitalin.dat')
     return digitalin
+
+

@@ -190,7 +190,7 @@ def speed(pos,value_gaussian_filter, columns_to_drop=None):
     
     return all_speed
 
-def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = False, centered = True):
+def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = False, centered = True,as_Tsd = False):
     '''
         Bin neuronal spikes with difine binSize.
         If no start/stop provided will run trought all the data
@@ -213,7 +213,8 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         for i,neuron in enumerate(neurons):
             binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
     elif fast:
-        binned = np.zeros((len(neurons),len(bins)+1),dtype = np.bool)
+        centered = False
+        binned = np.zeros((len(neurons),len(bins)),dtype = np.bool)
         b = bins
         for i,neuron in enumerate(neurons):
             spike_bin = np.unique((neuron.times(units = 's')/binSize).astype(np.int))
@@ -222,8 +223,28 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
 
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
+    if as_Tsd:
+        return nts.TsdFrame(b,binned.T,time_units='s')
     return b,binned
-    
+
+def bin_by_intervals(neurons, intervals,as_Tsd = False):
+    bins = np.sort(np.concatenate(
+        (intervals.as_units('s').start, intervals.as_units('s').end)))
+
+    binned = np.empty((len(neurons), len(bins)-1), dtype='int16')
+    for i, neuron in enumerate(neurons):
+        binned[i], b = np.histogram(neuron.as_units('s').index, bins=bins)
+    t = np.mean((intervals.as_units('s').start,
+                intervals.as_units('s').end), 0)
+
+    if as_Tsd:
+        return nts.TsdFrame(t,binned[:,::2].T,time_units='s')
+    return t, binned[:, ::2]
+
+
+def fr(neuron,state):
+    return len(neuron.restrict(state))/state.tot_length('s')
+
 def transitions_times(states,epsilon = 1,verbose = False):
     '''
         states : dict of nts.Interval_Set
@@ -282,10 +303,34 @@ def nts_smooth(y,m,std):
     g = scipy.signal.gaussian(m,std)
     g = g/g.sum()
     
-    conv = np.convolve(y.values,g,'same')
-    
-    y = nts.Tsd(y.index.values,conv)
+    if len(y.shape)>1:
+        y_ = np.zeros_like(y.values)
+
+        for i in range(y.shape[1]):
+
+            y_[:,i] = np.convolve(y.values[:,i],g,'same')
+        y = nts.TsdFrame(y.index.values,y_)
+    else:
+        conv = np.convolve(y.values,g,'same')
+        y = nts.Tsd(y.index.values,conv)
     return y
+
+def smooth(y,m,std):
+    g = scipy.signal.gaussian(m,std)
+    g = g/g.sum() 
+    y = np.convolve(y,g,'same')
+
+    return y
+
+def nts_zscore(tsd,axis = 0):
+        
+    t = tsd.index.values
+    if len(tsd.shape) > 1: 
+        z_tsd = scipy.stats.zscore(tsd.values.astype(np.float32),axis)
+        return nts.TsdFrame(t,z_tsd)
+    else:
+        z_tsd = scipy.stats.zscore(tsd.values.astype(np.float32))
+        return nts.Tsd(t,z_tsd)
 
 def intervals_exp(force_reload = False, save = False):
     files = os.listdir()
@@ -299,9 +344,9 @@ def intervals_exp(force_reload = False, save = False):
             tone = nts.IntervalSet(tone[:,0],tone[:,1],time_units='us')
             return (exp, shock, tone)
         
-    exp = tone_intervals(bk.loadold.digitalin('digitalin.dat')[1,:])
-    shock = tone_intervals(bk.loadold.digitalin('digitalin.dat')[2,:])
-    tone = tone_intervals(bk.loadold.digitalin('digitalin.dat')[3,:])
+    exp = tone_intervals(bk.load.digitalin('digitalin.dat',1))
+    shock = tone_intervals(bk.load.digitalin('digitalin.dat',2))
+    tone = tone_intervals(bk.load.digitalin('digitalin.dat',3))
     
     if save:
         with open('intervals.npy', 'wb') as f:
@@ -334,7 +379,7 @@ def crosscorrelogram(neurons,binSize,win):
     window = np.arange(winLen,dtype = int)-int(winLen/2)
     crosscorr = np.empty((winLen,len(neurons),len(neurons)),dtype = 'int16')
     last_spike = np.max([n.as_units('s').index[-1] for n in neurons])
-    t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1])
+    t,binned = binSpikes(neurons,binSize,start = 0, stop = last_spike+win[-1]+1)
 
     for i,n in tqdm(enumerate(neurons),total = len(neurons)):
         stimulus = n.as_units('s').index
@@ -351,7 +396,7 @@ def crosscorrelogram(neurons,binSize,win):
         
     return t,crosscorr
 
-def toIntervals(t,is_in):
+def toIntervals(t,is_in,time_units = 'us'):
     
     '''
     Author : BK (Inspired Michael Zugaro FMA Toolbox)
@@ -364,7 +409,7 @@ def toIntervals(t,is_in):
     end = np.where(d_is_in == -1)[0]-1
 
     
-    return nts.IntervalSet(start = t[start],end = t[end])
+    return nts.IntervalSet(start = t[start],end = t[end],time_units = time_units).drop_short_intervals(0).reset_index(drop = True)
 
 def transition(states, template, epsilon=0):
     """
@@ -452,7 +497,7 @@ def mean_resultant_length(angles,weights = None):
     angles = np.exp(1j*angles)
     return np.abs(np.average(angles,weights = weights))
 
-def concentration(angles):
+def concentration(angles,weights = None):
     '''
     Compute the kappa parameter Uses the approximation described in "Statistical Analysis of Circular Data" (Fisher, p. 88).
     Translated from MATLAB fmatoolbox.sourceforge.net/Contents/FMAToolbox/General/Concentration.html
@@ -463,8 +508,7 @@ def concentration(angles):
 
     '''
     n = len(angles)
-    angles = np.exp(1j * angles)  # Complex form of the angles
-    r = abs(np.mean(angles))
+    r = mean_resultant_length(angles,weights= weights)
 
     if r < 0.53:
         k = 2 * r + r**3 + 5*r**(5/6)
@@ -474,11 +518,54 @@ def concentration(angles):
         k = 1/(r**3 - 4 * r**2 + 3*r)
 
     # Correction for very small samples
-
-    if n <= 15:
-        if k < 2:
-            k = np.max([(k-2)/(n*k), 0])
-        else:
-            k = (n-1)**3 * k / (n**3+n)
+    if weights is None:
+        if n <= 15:
+            if k < 2:
+                k = np.max([(k-2)/(n*k), 0])
+            else:
+                k = (n-1)**3 * k / (n**3+n)
 
     return k
+
+def ppc(neuron, phase, n = None,n_shuffles = None):
+    if (n is not None) and (len(neuron)>n):
+        neuron = nts.Ts(np.sort(np.random.choice(neuron.times(),n)))
+    
+    neuron_phase = phase.realign(neuron)
+    neuron_phase = neuron_phase.values.astype(np.float16)
+    
+
+    pcc = neuron_phase[None, :] - neuron_phase[:, None]
+    pcc[np.diag_indices_from(pcc)] = np.nan
+    pcc = np.cos(pcc)
+    return np.nanmean(pcc, 0).mean()
+
+def interval_rates(intervals, binSize, time_units='s'):
+    '''
+    
+    This function return rates of occurence of an intervals as a Tsd.
+    
+    '''
+    bins = np.linspace(min(intervals.as_units(time_units).start), max(intervals.as_units(time_units).end), binSize)
+    interval_rates = []
+    for i in range(len(bins)-1):
+        inter = nts.IntervalSet(bins[i], bins[i+1], time_units=time_units)
+        interval_rates.append(len(inter.intersect(intervals)))
+
+    bins_center = np.convolve(bins, [0.5, 0.5], 'same')[1::]
+
+    return nts.Tsd(bins_center, interval_rates, time_units)
+
+def intervals_to_list_of_intervals(intervals):
+    interval_list = []
+    for start,end in intervals.iloc:
+        interval_list.append(nts.IntervalSet(start,end))
+    return interval_list
+    
+def cumsum_ditribution(x,nBins):
+    counts, bins = np.histogram(x,nBins)
+    counts = counts / np.sum(counts)
+
+    bins = np.convolve(bins,[0.5,0.5],'same')[1::]
+
+    return bins,np.cumsum(counts)

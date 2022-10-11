@@ -259,6 +259,7 @@ class IntervalSet(pd.DataFrame):
         """
         if len(self) == 0:
             return IntervalSet(start=[], end=[])
+        # self = self.drop_short_intervals(0).reset_index(drop = True)
         tsp = self.time_span()
         i1 = tsp.set_diff(self)
         i1 = i1.drop_short_intervals(threshold, time_units=time_units)
