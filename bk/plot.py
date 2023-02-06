@@ -47,7 +47,7 @@ def spectrogram(t,f,spec,log = False,ax = None,vmin = None,vmax = None):
     ax.pcolormesh(t,f,spec)
 
     
-def cumsum_curves(x,nbins,col = '',ax = None, log = False):
+def cumsum_curves(x,nbins,col = 'orange',ax = None, log = False):
     x,y = bk.compute.cumsum_ditribution(x,nbins)
 
     if ax is None:
@@ -63,7 +63,19 @@ def confidence_intervals(x,y,style = 'orange',ax = None):
     if ax is None:
         fig,ax = plt.subplots(1,1)
     
-    conf = 1.96*scipy.stats.sem(y,0)
-    m = np.mean(y,0)
+    conf = 1.96*scipy.stats.sem(y,0,nan_policy='omit')
+    m = np.nanmean(y,0)
     ax.plot(x,m,style)
     ax.fill_between(x,m+conf,m-conf,color = style,alpha = 0.2)
+
+def curve_and_shades(x,y,method = 'std',style = 'orange',ax = None):
+    if ax is None:
+        fig,ax = plt.subplots(1,1)
+    if method.lower() == 'std':
+        shade = np.nanstd(y,0)
+    elif method.lower() == 'sem':
+        shade = scipy.stats.sem(y,0,nan_policy='omit')
+     
+    m = np.nanmean(y,0)
+    ax.plot(x,m,style)
+    ax.fill_between(x,m+shade,m-shade,color = style,alpha = 0.2)

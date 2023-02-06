@@ -1,3 +1,4 @@
+from dataclasses import replace
 import numpy as np
 import neuroseries as nts
 from tqdm import tqdm
@@ -5,6 +6,9 @@ import os
 import scipy.stats
 import bk.loadold
 import pandas as pd
+import itertools as it
+
+
 def freezing_intervals(speed,threshold, mode='single_speed',clean = False, t_merge = 0.5,t_drop = 1,save = False):
     
     """
@@ -206,10 +210,9 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
     
     bins = np.arange(start,stop,binSize)
     if nbins is not None: bins = np.linspace(start,stop,nbins+1) # IF NUMBER OF BINS IS USED THIS WILL OVERWRITE binSize    
-
     
     if not fast:
-        binned = np.empty((len(neurons),len(bins)-1),dtype = 'int16')
+        binned = np.empty((len(neurons),len(bins)-1),dtype = 'int32')
         for i,neuron in enumerate(neurons):
             binned[i],b = np.histogram(neuron.as_units('s').index,bins = bins,range = [start,stop])
     elif fast:
@@ -223,6 +226,7 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
 
     if centered:
         b = np.convolve(b,[.5,.5],'same')[1::]
+        b = np.round(b,6)
     if as_Tsd:
         return nts.TsdFrame(b,binned.T,time_units='s')
     return b,binned
@@ -231,7 +235,7 @@ def bin_by_intervals(neurons, intervals,as_Tsd = False):
     bins = np.sort(np.concatenate(
         (intervals.as_units('s').start, intervals.as_units('s').end)))
 
-    binned = np.empty((len(neurons), len(bins)-1), dtype='int16')
+    binned = np.empty((len(neurons), len(bins)-1), dtype='int32')
     for i, neuron in enumerate(neurons):
         binned[i], b = np.histogram(neuron.as_units('s').index, bins=bins)
     t = np.mean((intervals.as_units('s').start,
@@ -240,6 +244,16 @@ def bin_by_intervals(neurons, intervals,as_Tsd = False):
     if as_Tsd:
         return nts.TsdFrame(t,binned[:,::2].T,time_units='s')
     return t, binned[:, ::2]
+
+def jitter_spikes(neuron,tmax,time_units = 'ms'):
+    np.random.seed()
+    jit = (np.random.rand(len(neuron)) - 0.5)*tmax*2
+    new_spikes = neuron.times(time_units)+jit
+    return nts.Ts(np.sort(new_spikes),time_units)
+
+def jittered_ppc(neuron,phases,jitter_max,n_spikes,i):
+    j_s = jitter_spikes(neuron,jitter_max)
+    return ppc(j_s,phases,n_spikes)
 
 
 def fr(neuron,state):
@@ -451,6 +465,8 @@ def transition(states, template, epsilon=0):
 
     transition_times = np.array(transition_times)
     transition_intervals = np.array(transition_intervals)
+    if len(transition_intervals) == 0: 
+        return False,False
     transition_intervals = nts.IntervalSet(
         start=transition_intervals[:, 0],
         end=transition_intervals[:, 1],
@@ -527,13 +543,14 @@ def concentration(angles,weights = None):
 
     return k
 
+def downsample_spikes(neuron,n):
+    return nts.Ts(np.sort(np.random.choice(neuron.times(),n,replace = False)))
+
 def ppc(neuron, phase, n = None,n_shuffles = None):
     if (n is not None) and (len(neuron)>n):
-        neuron = nts.Ts(np.sort(np.random.choice(neuron.times(),n)))
+        neuron = nts.Ts(np.sort(np.random.choice(neuron.times(),n,replace = False)))
     
-    neuron_phase = phase.realign(neuron)
-    neuron_phase = neuron_phase.values.astype(np.float16)
-    
+    neuron_phase = phase.realign(neuron).values
 
     pcc = neuron_phase[None, :] - neuron_phase[:, None]
     pcc[np.diag_indices_from(pcc)] = np.nan
@@ -562,10 +579,26 @@ def intervals_to_list_of_intervals(intervals):
         interval_list.append(nts.IntervalSet(start,end))
     return interval_list
     
-def cumsum_ditribution(x,nBins):
-    counts, bins = np.histogram(x,nBins)
+def cumsum_ditribution(x,nBins,density = False):
+    counts, bins = np.histogram(x,nBins,density = density)
     counts = counts / np.sum(counts)
 
     bins = np.convolve(bins,[0.5,0.5],'same')[1::]
 
     return bins,np.cumsum(counts)
+
+
+def extended(states, state='sleep', sleep_th=60*30, wake_th=60):
+    # Return extended sleep session given state, sleep
+    if state.lower() == 'sleep':
+        extended = states['NREM'].union(
+            states['REM']).merge_close_intervals(wake_th, time_units='s')
+        extended = extended[extended.duration(
+            time_units='s') > sleep_th].reset_index(drop=True)
+
+    elif state.lower() == 'wake':
+        extended = states['WAKE_HOMECAGE'].merge_close_intervals(
+            sleep_th, time_units='s')
+        extended = extended[extended.duration(
+            time_units='s') > wake_th].reset_index(drop=True)
+    return extended

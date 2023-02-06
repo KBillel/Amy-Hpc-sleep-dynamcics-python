@@ -9,6 +9,9 @@ import basefunction.vBaseFunctions3 as vbf
 from fooof import FOOOF
 from fooof.sim.gen import gen_aperiodic
 
+
+from tqdm import tqdm
+
 def highpass(lfp, low, fs=1250, order=4):
     b, a = scipy.signal.butter(order, low, 'highpass', fs=fs)
     filtered = scipy.signal.filtfilt(b, a, lfp.values)
@@ -51,15 +54,15 @@ def wavelet_spectrogram(lfp, fmin, fmax, nfreq):
     f_wv = pow(2, np.linspace(np.log2(fmin), np.log2(fmax), nfreq))
     output = vbf.wvSpect(lfp.values, f_wv)  # [0]
 
-    return t, f_wv, output
+    return f_wv, t, output
 
 
 def wavelet_spectrogram_intervals(lfp, intervals, q=16, fmin=0.5, fmax=100, num=50):
     t = []
     Sxx = []
-    for s, e in intervals.iloc:
+    for s, e in tqdm(intervals.iloc,total = len(intervals)):
         inter = nts.IntervalSet(s, e)
-        t_, f, Sxx_ = wavelet_spectrogram(
+        f,t_, Sxx_ = wavelet_spectrogram(
             lfp.restrict(inter), fmin, fmax, num)
         Sxx_, t_ = scipy.signal.resample(Sxx_, int(len(t_)/q), t_, axis=1)
         t.append(t_)
@@ -68,7 +71,7 @@ def wavelet_spectrogram_intervals(lfp, intervals, q=16, fmin=0.5, fmax=100, num=
     Sxx = np.hstack(Sxx)
     t = np.hstack(t)
 
-    return t, f, Sxx
+    return f,t, Sxx
 
 
 def wavelet_bandpower(lfp, low, high, nfreq=10):

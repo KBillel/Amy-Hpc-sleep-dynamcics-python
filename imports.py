@@ -20,10 +20,16 @@ import bk.compute
 import bk.plot
 import bk.signal
 import bk.stats
+import bk.multi
 
 import os
 
-plt.rcParams['svg.fonttype'] = 'none'
+
 plt.style.use('ggplot')
 
-
+# plt.rcParams['svg.fonttype'] = 'none'
+# plt.rcParams['figure.facecolor'] = '1c2128'
+# plt.rcParams['xtick.color'] = 'white'
+# plt.rcParams['ytick.color'] = 'white'
+# plt.rcParams['text.color'] = 'white'
+# plt.rcParams['legend.facecolor'] = '1c2128'

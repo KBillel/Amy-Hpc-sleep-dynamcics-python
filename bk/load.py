@@ -174,7 +174,7 @@ def intervals(name):
         return intervals
 
 def analysis(name):
-    if not name.endswith('.npy'):
+    if (not name.endswith('.npy') or (not name.endswith('.npz'))):
         name = name+'.npy'
     if os.path.exists(f'Analysis/{name}'):
         data = np.load(f'Analysis/{name}',allow_pickle=True)
@@ -360,7 +360,7 @@ def states(new_names = False):
 
     sleep = bk.load.sleep()
     wake_homecage = states_['wake'].intersect(sleep).drop_short_intervals(1)
-    states_.update({'wake_homecage': wake_homecage})
+    states_.update({'WAKE_HOMECAGE': wake_homecage})
     if new_names:
         states_['NREM'] = states_.pop('sws')
         states_['REM'] = states_.pop('Rem')
