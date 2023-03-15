@@ -52,6 +52,9 @@ def detect_gamma(lfp, threshold=2, max_inter=20, min_duration=10, max_duration=5
 
 def main(base_folder, local_path, *args, **kwargs):
     bk.load.current_session_linux(base_folder,local_path)
+    if bk.load.analysis('Gamma/gamma_intervals'):
+        return True
+
     states = bk.load.states(new_names = True)
     sides = ['left', 'right']
 
@@ -62,8 +65,8 @@ def main(base_folder, local_path, *args, **kwargs):
         for side in sides:
             lfp.update({side: bk.load.lfp_in_intervals(
                 bk.load.bla_channels()[side], states[state])})
-        lfp.update({'Hpc': bk.load.lfp_in_intervals(
-            bk.load.ripple_channel(), states[state])})
+        # lfp.update({'Hpc': bk.load.lfp_in_intervals(
+        #     bk.load.ripple_channel(), states[state])})
 
         gamma[state] = {}
         for chan in lfp:

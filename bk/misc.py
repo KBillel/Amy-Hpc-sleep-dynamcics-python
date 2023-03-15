@@ -1,5 +1,5 @@
-import pandas
-import numpy
+import pandas as pd
+import numpy as np
 
 def states_to_longstates(states):
     '''
@@ -14,3 +14,7 @@ def states_to_longstates(states):
     long = long.iloc[order]
     
     return long
+
+def discard_border(state, t):
+    state.start = state.start + (t * 1_000_000)
+    state.end = state.end - (t * 1_000_000)

@@ -59,13 +59,13 @@ def cumsum_curves(x,nbins,col = 'orange',ax = None, log = False):
         ax.plot(x,y,col)
 
 
-def confidence_intervals(x,y,style = 'orange',ax = None):
+def confidence_intervals(x,y,style = None,ax = None):
     if ax is None:
         fig,ax = plt.subplots(1,1)
     
     conf = 1.96*scipy.stats.sem(y,0,nan_policy='omit')
     m = np.nanmean(y,0)
-    ax.plot(x,m,style)
+    ax.plot(x,m,c = style)
     ax.fill_between(x,m+conf,m-conf,color = style,alpha = 0.2)
 
 def curve_and_shades(x,y,method = 'std',style = 'orange',ax = None):
@@ -79,3 +79,15 @@ def curve_and_shades(x,y,method = 'std',style = 'orange',ax = None):
     m = np.nanmean(y,0)
     ax.plot(x,m,style)
     ax.fill_between(x,m+shade,m-shade,color = style,alpha = 0.2)
+
+
+def forceAspect(ax,aspect=1):
+    #aspect is width/height
+    scale_str = ax.get_yaxis().get_scale()
+    xmin,xmax = ax.get_xlim()
+    ymin,ymax = ax.get_ylim()
+    if scale_str=='linear':
+        asp = abs((xmax-xmin)/(ymax-ymin))/aspect
+    elif scale_str=='log':
+        asp = abs((scipy.log(xmax)-scipy.log(xmin))/(scipy.log(ymax)-scipy.log(ymin)))/aspect
+    ax.set_aspect(asp)

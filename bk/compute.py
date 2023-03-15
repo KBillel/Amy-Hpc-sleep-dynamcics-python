@@ -204,7 +204,8 @@ def binSpikes(neurons,binSize = 0.025,start = 0,stop = None,nbins = None,fast = 
         If centered will return the center of each bin. Otherwise will return edges
         I think that fast is not compatible with centered because already centering.
     '''
-    if binSize < 0.025 and not fast: print(f"You are using {binSize} ms bins with the function fast off. Consider using \"Fast = True\" in order to speed up the computations")
+    if binSize is not None:
+        if binSize < 0.025 and not fast: print(f"You are using {binSize} ms bins with the function fast off. Consider using \"Fast = True\" in order to speed up the computations")
     if stop is None:
         stop = np.max([neuron.as_units('s').index[-1] for neuron in neurons if any(neuron.index)])
     
@@ -314,6 +315,9 @@ def transitions_times(states,epsilon = 1,verbose = False):
     return transitions_intervals,transitions_timing
 
 def nts_smooth(y,m,std):
+
+    if len(y)<m:
+        m = len(y)
     g = scipy.signal.gaussian(m,std)
     g = g/g.sum()
     
@@ -447,15 +451,15 @@ def transition(states, template, epsilon=0):
     transition_times = []
     transition_intervals = []
     for i, s in enumerate(long.state):
-        tmp = list(long.state[i: i + len(template)])
+        tmp = list(long.state.iloc[i: i + len(template)])
         if tmp == template:
             tmp_transition = long.iloc[i: i + len(template)]
             #             print(d.iloc[i:i+len(template)])
             length = (tmp_transition.end - tmp_transition.start) / 1_000_000
             if np.any(length.values < epsilon):
                 continue
-            tmp_pre = np.array(tmp_transition.end[:-1])
-            tmp_post = np.array(tmp_transition.start[1:])
+            tmp_pre = np.array(tmp_transition.end.iloc[:-1])
+            tmp_post = np.array(tmp_transition.start.iloc[1:])
             tmp_times = np.mean([tmp_pre, tmp_post], 0)
 
             transition_intervals.append(

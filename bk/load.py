@@ -22,7 +22,7 @@ global session, path, rat, day, n_channels
 
 def sessions(base_folder = None):
     if base_folder is None:
-        return pd.read_csv(base+"relative_session_indexing.csv", sep=",")
+        return pd.read_csv(base+"/relative_session_indexing.csv", sep=",")
     else:
         return pd.read_csv(base_folder)
 
@@ -149,6 +149,7 @@ def batch(func, *args, local_base='/mnt/electrophy/Gabrielle/GG-Dataset-Light', 
             print("Error in session " + session)
             if not verbose:
                 clear_output()
+    print(error)
     print("Batch finished in " + str(time.time() - t))
 
     if error:
@@ -182,6 +183,8 @@ def analysis(name):
             return data
         else:
             return data.ravel()[0]
+    
+        
     else:
         print(f'Can\'t find {name} in the analysis folder')
         return False
@@ -369,11 +372,15 @@ def states(new_names = False):
 
 def sleep():
     runs = scipy.io.loadmat("runintervals.mat")["runintervals"]
-    pre_sleep = nts.IntervalSet(
-        start=runs[0, 1], end=runs[1, 0], time_units="s")
-    post_sleep = nts.IntervalSet(
-        start=runs[1, 1], end=runs[2, 0], time_units="s")
-
+    if len(runs) == 3:
+        pre_sleep = nts.IntervalSet(
+            start=runs[0, 1], end=runs[1, 0], time_units="s")
+        post_sleep = nts.IntervalSet(
+            start=runs[1, 1], end=runs[2, 0], time_units="s")
+    elif len(runs) == 1:
+        end = len(lfp(0,memmap=True))/1250
+        pre_sleep = nts.IntervalSet(start = 0,end = runs[0,0],time_units='s')
+        post_sleep = nts.IntervalSet(start = runs[0,1],end = end,time_units='s')
     intervals = pd.concat((pre_sleep, post_sleep))
     intervals.index = ['Pre', 'Post']
 
@@ -406,7 +413,6 @@ def ripple_channel():
 
     return chan
 
-    return chan
 
 
 def events(filename):
